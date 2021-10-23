@@ -1,0 +1,82 @@
+{% include 'ucp_header.html' %}
+<h2 class="searchresults-title">{SEARCH_MATCHES}{L_COLON} <a href="{U_SEARCH_WORDS}">{SEARCH_WORDS}</a></h2>
+<!-- IF SEARCHED_QUERY --> <p>{L_SEARCHED_QUERY}{L_COLON} <strong>{SEARCHED_QUERY}</strong></p><!-- ENDIF -->
+<!-- IF SEARCHED_AUTHOR --> <p>{L_UCP_PMSEARCH_SEARCH_AUTHOR}{L_COLON} <strong>{SEARCHED_QUERY}</strong></p><!-- ENDIF -->
+<!-- IF SEARCHED_FOLDER --> <p>{L_SEARCHED_QUERY}{L_COLON} <strong>{SEARCHED_QUERY}</strong></p><!-- ENDIF -->
+<!-- IF IGNORED_WORDS --> <p>{L_IGNORED_TERMS}{L_COLON} <strong>{IGNORED_WORDS}</strong></p><!-- ENDIF -->
+
+
+<p class="return-link">
+	<a class="arrow-{S_CONTENT_FLOW_BEGIN}" href="{U_SEARCH_TOPIC}">
+		<i class="icon fa-angle-{S_CONTENT_FLOW_BEGIN} fa-fw icon-black" aria-hidden="true"></i><span>{L_UCP_PMSEARCH_RETURN}</span>
+	</a>
+</p>
+
+<!-- IF .pagination or SEARCH_MATCHES or TOTAL_MATCHES or PAGE_NUMBER -->
+<div class="action-bar bar-top">
+
+	<div class="pagination">
+		{SEARCH_MATCHES}
+		<!-- IF .pagination -->
+		<!-- INCLUDE pagination.html -->
+		<!-- ELSE -->
+		&bull; {PAGE_NUMBER}
+		<!-- ENDIF -->
+	</div>
+</div>
+<!-- ENDIF -->
+<!-- BEGIN searchresults -->
+
+<div class="search post <!-- IF searchresults.S_ROW_COUNT is odd -->bg1<!-- ELSE -->bg2<!-- ENDIF --><!-- IF searchresults.S_POST_REPORTED --> reported<!-- ENDIF -->">
+	<div class="inner">
+		<dl class="postprofile">
+			
+			<dt class="author">{L_POST_BY_AUTHOR} {searchresults.POST_AUTHOR_FULL}</dt>
+			<dd class="search-result-date">{searchresults.POST_DATE}</dd>
+
+		</dl>
+
+		<div class="postbody">
+
+			<h3><a href="{searchresults.U_VIEW_POST}">{searchresults.POST_SUBJECT}</a></h3>
+			<div class="content">{searchresults.MESSAGE}</div>
+			
+		</div>
+
+		<ul class="searchresults">
+			<li>
+				<a href="{searchresults.U_VIEW_POST}" class="arrow-{S_CONTENT_FLOW_END}">
+					<i class="icon fa-angle-{S_CONTENT_FLOW_END} fa-fw icon-black" aria-hidden="true"></i><span>{L_UCP_PMSEARCH_JUMP}</span>
+				</a>
+			</li>
+		</ul>
+
+	</div>
+</div>
+
+<!-- BEGINELSE -->
+<div class="panel">
+	<div class="inner">
+		<strong>{L_NO_SEARCH_RESULTS}</strong>
+	</div>
+</div>
+<!-- END searchresults -->
+
+<div class="action-bar bottom">
+	<!-- IF .searchresults and (S_SELECT_SORT_DAYS or S_SELECT_SORT_KEY) -->
+	<form method="post" action="{S_SEARCH_ACTION}">
+		<!-- INCLUDE display_options.html -->
+	</form>
+	<!-- ENDIF -->
+
+	<div class="pagination">
+		{SEARCH_MATCHES}
+		<!-- IF .pagination -->
+		<!-- INCLUDE pagination.html -->
+		<!-- ELSE -->
+		&bull; {PAGE_NUMBER}
+		<!-- ENDIF -->
+	</div>
+</div>
+
+{% include 'ucp_footer.html' %}

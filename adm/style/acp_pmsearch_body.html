@@ -1,0 +1,82 @@
+{% include 'overall_header.html' %}
+
+<h1 xmlns="http://www.w3.org/1999/html">{{ lang('ACP_PMSEARCH_TITLE') }}</h1>
+{% if S_ERROR %}
+<div class="errorbox">
+	<h3>{{ lang('WARNING') }}</h3>
+	<p>{{ ERROR_MSG }}</p>
+</div>
+{% endif %}
+{% if program_error %}
+<div class="errorbox">
+	<h3>{{ lang('ACP_PMSEARCH_PROGRAM_ERROR') }}</h3>
+	<p>{{ ERROR_MSG }}</p>
+</div>
+{% endif %}
+
+<div class="lside">
+	<table class="table2 zebra-table no-header" data-no-responsive-header="true">
+		<thead>
+		<tr>
+			<th>{{ lang('STATISTIC') }}</th>
+			<th>{{ lang('VALUE') }}</th>
+		</tr>
+		</thead>
+
+		<tbody>
+		<tr>
+			<td class="tabled">{{ lang('ACP_PMSEARCH_VERSION') ~ lang('COLON') }}</td>
+			<td class="tabled"><strong>{{ INDEX_VERSION }}</strong></td>
+		</tr>
+		<tr>
+			<td class="tabled">{{ lang('ACP_PMSEARCH_TOTAL_MESSAGES') ~ lang('COLON') }}</td>
+			<td class="tabled"><strong>{{ TOTAL_MESSAGES }}</strong></td>
+		</tr>
+		<tr>
+			<td class="tabled">{{ lang('ACP_PMSEARCH_INDEX_BYTES') ~ lang('COLON') }}</td>
+			<td class="tabled"><strong>{{ INDEX_BYTES }}</strong></td>
+		</tr>
+		<tr>
+			<td class="tabled">{{ lang('ACP_PMSEARCH_RAM_BYTES') ~ lang('COLON') }}</td>
+			<td class="tabled"><strong>{{ RAM_BYTES }}</strong></td>
+		</tr>
+		</tbody>
+	</table>
+</div>
+
+<form id="form_settings" method="post" action="{U_ACTION}" data-ajax="true">
+	<fieldset>
+		<legend><span style="text-decoration-line: line-through">{{ lang('GENERAL_OPTIONS') }}</span> Not yet working</legend>
+
+			<dl> <!-- Todo finish options -->
+				<dt><label for="settings_hostname">{{ lang('ACP_PMSEARCH_HOSTNAME') }}</label><br /><span>&nbsp;</span></dt>
+				<dd><input type="text" id="settings_hostname" name="hostname" value="127.0.0.1" /></dd>
+			</dl>
+			<dl>
+				<dt><label for="settings_port">{{ lang('ACP_PMSEARCH_PORT') }}</label><br /><span>&nbsp;</span></dt>
+				<dd><input type="text" id="settings_port" name="port" value="9036" /></dd>
+			</dl>
+	</fieldset>
+	<fieldset>
+		<legend>{{ lang('ACP_SUBMIT_CHANGES') }}</legend>
+		<p class="submit-buttons">
+			<input type="hidden" name="action" value="settings" />
+			<input id="submit" class="button1" type="submit" name="submit" value="{{ lang('SUBMIT') }}" />&nbsp;
+			<input class="button2" type="reset" id="reset" name="reset" value="{{ lang('RESET') }}" />
+		</p>
+		{S_FORM_TOKEN}
+		<!-- Todo finish form token -->
+	</fieldset>
+</form>
+
+<fieldset>
+	<legend>{{ lang('ACP_PMSEARCH_INDEX_COMMANDS') }}</legend>
+	<form id="form_action_reindex" method="post" action="{U_ACTION}" data-ajax="true">
+		<dl>
+			<dt><label for="action_reindex">{{ lang('ACP_PMSEARCH_REINDEX') }}</label><br /><span>&nbsp;</span></dt>
+			<dd><input type="hidden" name="action" value="reindex" /><input class="button2" type="submit" id="action_reindex" name="action_reindex" value="{L_RUN}" /></dd>
+		</dl>
+	</form>
+</fieldset>
+
+{% include 'overall_footer.html' %}

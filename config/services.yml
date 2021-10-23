@@ -1,0 +1,28 @@
+services:
+    crosstimecafe.pmsearch.controller.acp:
+        class: crosstimecafe\pmsearch\controller\acp_controller
+        arguments:
+            - '@config'
+            - '@language'
+            - '@log'
+            - '@request'
+            - '@template'
+            - '@user'
+            - '@dbal.conn'
+    crosstimecafe.pmsearch.controller.ucp:
+        class: crosstimecafe\pmsearch\controller\ucp_controller
+        arguments:
+            - '@dbal.conn'
+            - '@language'
+            - '@request'
+            - '@template'
+            - '@user'
+            - '@pagination'
+            - '@config'
+    crosstimecafe.pmsearch.listener:
+        class: crosstimecafe\pmsearch\event\main_listener
+        arguments:
+            - '@dbal.conn'
+            - '@user'
+        tags:
+            - { name: event.listener}
