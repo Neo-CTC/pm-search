@@ -3,12 +3,12 @@
     "type": "phpbb-extension",
     "description": "Search for private messages",
     "homepage": "https://crosstimecafe.com",
-    "version": "dev-1.0.0",
+    "version": "dev-0.1.0",
     "time": "2021-10-16",
     "license": "GPL-2.0-only",
     "authors": [
         {
-            "name": "Neo",
+            "name": "NeoDev",
             "email": "neo@crosstimecafe.com",
             "homepage": "https://crosstimecafe.com",
             "role": ""

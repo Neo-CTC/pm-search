@@ -113,7 +113,7 @@ class acp_controller
 			$result = $this->search_execute();
 			if (!$result->count())
 			{
-				trigger_error('Private message table missing');
+				trigger_error('Private message table missing',E_USER_WARNING);
 			}
 			$this->indexer->select('id')->from('pm')->limit(500);
 			$result = $this->search_execute();
@@ -159,14 +159,13 @@ class acp_controller
 			$result = $this->db->sql_query_limit($query,500,$offset);
 		}
 
-		// Real time indexes can become fragmented if you don't optimize it.
 		$this->indexer->query('OPTIMIZE INDEX pm');
 		$this->search_execute();
 
-		$message = $this->language->lang('ACP_PMSEARCH_DONE')."\n";
-		if (DEBUG)
+		$message = $this->language->lang('ACP_PMSEARCH_DONE')."<br />";
+		if (defined('DEBUG'))
 		{
-			$message .= 'Time: '.round(microtime(true)-$time,1).' seconds<br /> Peek memory: '.round(memory_get_peak_usage()/1048576,2).'MiB';
+			$message .= 'Index time: '.round(microtime(true)-$time,1).' seconds<br /> Peek memory usage: '.round(memory_get_peak_usage()/1048576,2).'MiB';
 		}
 
 		trigger_error($message,E_USER_NOTICE);
@@ -176,7 +175,7 @@ class acp_controller
 	{
 		$this->u_action = $u_action;
 	}
-	private function search_execute($err_msg = 'Error in search')
+	private function search_execute($err_msg = 'Error in search backend')
 	{
 		$result = false;
 		try
@@ -185,13 +184,13 @@ class acp_controller
 		}
 		catch (\Foolz\SphinxQL\Exception\DatabaseException $e)
 		{
-			if(DEBUG)
+			if(defined('DEBUG'))
 			{
-				trigger_error($e->getMessage());
+				trigger_error($e->getMessage(),E_USER_WARNING);
 			}
 			else
 			{
-				trigger_error($err_msg);
+				trigger_error($err_msg,E_USER_WARNING);
 			}
 		}
 		return $result;
