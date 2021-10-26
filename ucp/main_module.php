@@ -29,29 +29,32 @@ class main_module
 	 */
 	public function main($id, $mode)
 	{
+		// Fetch the controller
 		/** @var \phpbb\request\request $request */
 		global $phpbb_container, $request;
 
 		/** @var \crosstimecafe\pmsearch\controller\ucp_controller $ucp_controller */
 		$ucp_controller = $phpbb_container->get('crosstimecafe.pmsearch.controller.ucp');
 
+		// Load language settings
 		/** @var \phpbb\language\language $language */
 		$language = $phpbb_container->get('language');
 		$language->add_lang('search');
-
-		// Set the page title for our UCP page
 		$this->page_title = $language->lang('UCP_PMSEARCH_TITLE');
 
-		// Make the $u_action url available in our UCP controller
+		// Load controller settings
 		$ucp_controller->set_page_url($this->u_action);
 
-		// Load the display options handle in our UCP controller
-		if($mode == 'search')
+		// Select controller function
+		if ($mode == 'search')
 		{
-			// Todo validate and verify form
+			// Collect input variables
+			$keywords = $request->variable('keywords', '', true);
+			$from = $request->variable('from', '', true);
+			$sent = $request->variable('sent', '', true);
 
-			// Todo I should probably use $mode for this
-			if($request->variable('author', '') || $request->variable('keywords',''))
+			// Select function
+			if ($keywords || $from || $sent)
 			{
 				$this->tpl_name = 'ucp_pmsearch_results';
 				$ucp_controller->display_messages();
@@ -62,6 +65,5 @@ class main_module
 				$ucp_controller->display_options();
 			}
 		}
-
 	}
 }

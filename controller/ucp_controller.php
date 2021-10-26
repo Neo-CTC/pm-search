@@ -10,9 +10,19 @@
 namespace crosstimecafe\pmsearch\controller;
 
 use Foolz\SphinxQL\Drivers\Mysqli\Connection;
+use Foolz\SphinxQL\Exception\ConnectionException;
+use Foolz\SphinxQL\Exception\DatabaseException;
+use Foolz\SphinxQL\Exception\SphinxQLException;
 use Foolz\SphinxQL\SphinxQL;
 
-use phpbb\extension\exception;
+use phpbb\config\config;
+use phpbb\db\driver\driver_interface;
+use phpbb\language\language;
+use phpbb\pagination;
+use phpbb\request\request;
+use phpbb\template\template;
+use phpbb\user;
+
 include('includes/functions_privmsgs.php');
 
 /**
@@ -20,34 +30,18 @@ include('includes/functions_privmsgs.php');
  */
 class ucp_controller
 {
-	/** @var \phpbb\db\driver\driver_interface */
 	protected $db;
-
-	/** @var \phpbb\language\language */
 	protected $language;
-
-	/** @var \phpbb\request\request */
 	protected $request;
-
-	/** @var \phpbb\template\template */
 	protected $template;
-
-	/** @var \phpbb\user */
 	protected $user;
-
-	/** @var string Custom form action */
-	protected $u_action;
-
-	/** @var \phpbb\pagination */
 	protected $pagination;
-
-	/** @var \phpbb\config\config */
 	protected $config;
 
+	protected $u_action;
+	protected $uid;
 	protected $root;
 	protected $ext;
-
-	/** @var  */
 
 	/**
 	 * Constructor.
@@ -58,13 +52,14 @@ class ucp_controller
 	 * @param \phpbb\template\template			$template	Template object
 	 * @param \phpbb\user						$user		User object
 	 */
-	public function __construct(\phpbb\db\driver\driver_interface $db, \phpbb\language\language $language, \phpbb\request\request $request, \phpbb\template\template $template, \phpbb\user $user, \phpbb\pagination $page, \phpbb\config\config $conf)
+	public function __construct(driver_interface $db, language $language, request $request, template $template, user $user, pagination $page, config $conf)
 	{
 		$this->db			= $db;
 		$this->language		= $language;
 		$this->request		= $request;
 		$this->template		= $template;
 		$this->user			= $user;
+		$this->uid			= $user->id();
 		$this->pagination	= $page;
 		$this->config		= $conf;
 
@@ -75,10 +70,8 @@ class ucp_controller
 
 	public function display_messages()
 	{
-		// Create a form key for preventing CSRF attacks
+		// Form key for preventing CSRF attacks
 		add_form_key('crosstimecafe_pmsearch_ucp');
-
-		// Is the form being submitted to us?
 		if ($this->request->is_set_post('submit'))
 		{
 			if (!check_form_key('crosstimecafe_pmsearch_ucp'))
@@ -87,6 +80,7 @@ class ucp_controller
 			}
 		}
 
+		// Todo don't forget about group messages
 		// Todo add try/catch
 		// Todo harden input
 		// Todo get minimum characters
@@ -94,67 +88,112 @@ class ucp_controller
 		// Todo max return limits
 		// Todo pagination jump box not working
 		// Todo author and keyword not working together?
-		$keywords = $this->request->variable('keywords', '', true);
-		$keywords = str_replace('&quot;','"',$keywords);
-		$author = $this->request->variable('author', '', true);
-		if ($keywords == '' and $author == '')
-		{
-			trigger_error($this->language->lang('UCP_PMSEARCH_MISSING'));
-		}
-		// Todo enable searching for multiple authors
-		$author_id_ary = [];
-		if ($author)
-		{
-			$sql_where = (strpos($author, '*') !== false) ? ' username_clean ' . $this->db->sql_like_expression(str_replace('*', $this->db->get_any_char(), utf8_clean_string($author))) : " username_clean = '" . $this->db->sql_escape(utf8_clean_string($author)) . "'";
-			$sql = 'SELECT user_id FROM ' . USERS_TABLE . " WHERE $sql_where";
-			$result = $this->db->sql_query_limit($sql, 100);
+		// Todo allow searching multiple authors/sent to
 
-			while ($row = $this->db->sql_fetchrow($result))
-			{
-				$author_id_ary[] = (int) $row['user_id'];
-			}
-			if (!count($author_id_ary))
-			{
-				trigger_error('NO_SEARCH_RESULTS');
-			}
-			$this->db->sql_freeresult($result);
-		}
+
+		/*
+		 *
+		 * Collect input
+		 *
+		 */
+
+
+		$keywords = $this->request->variable('keywords', '', true);
+		$from = $this->request->variable('from', '', true);
+		$sent = $this->request->variable('sent', '', true);
 		$folders = $this->request->variable('fid', [0]);
+		$search_field = $this->request->variable('sf', 'all');
+		$order = $this->request->variable('sk','message_time');
+		$direction = $this->request->variable('sd','desc');
+		$start = $this->request->variable('start',0);
+
+
+		/*
+		 *
+		 * Process input
+		 *
+		 */
+
+
+		// Todo test bcc. make sure you can't search for users in the bcc
+		// Todo remove explain from 'from' & 'to' fields, replace with find member link
+		// Todo limit length of fields
+
+		// Can not search by from and to in the same search
+		if ($from && $sent)
+		{
+			trigger_error($this->language->lang('UCP_PMSEARCH_NOT_BOTH'));
+		}
+
+		// Un-escape quotes
+		$keywords = str_replace('&quot;','"',$keywords);
+
+		// Split from/sent field into an id array if needed
+		$from_id_array = [];
+		$sent_id_array = [];
+		if ($from)
+		{
+			$from_id_array = $this->get_ids($from);
+		}
+		if ($sent)
+		{
+			$sent_id_array = $this->get_ids($sent);
+		}
+
+		// Odd setup to make folder searching work with the default folders
 		$folder_ids = '';
+		$folder_id_array = [];
 		if($folders)
 		{
-			$fid = [];
 			foreach ($folders as $f)
 			{
-				$fid[] = '"' . $this->user->id() . '_' . $f . '"';
+				// Because everyone has the same folder ids for Inbox, Sent, and Outbox, we add `<user id>_` to the start of all
+				// folders. This allows us to run a full text match for matching folders.
+				$folder_id_array[] = '"' . $this->uid . '_' . $f . '"';
 			}
-			$folder_ids = implode('|', $fid);
+			unset($f);
+			// Adds an OR operator for searching
+			$folder_ids = implode('|', $folder_id_array);
 		}
-		$search_field = $this->request->variable('sf', 'all');
+
+		// Which full text fields to search
 		switch ($search_field)
 		{
-			case 'msgonly':
-				$sf = 'message_text';
-			break;
-			case 'titleonly':
-				$sf = 'message_subject';
-			break;
-			case 'all':
+			case 't':
+				$search_field = 'message_text';
+				break;
+			case 's':
+				$search_field = 'message_subject';
+				break;
+			case 'b':
 			default:
-				$sf = ['message_text','message_subject'];
+				$search_field = ['message_text','message_subject'];
 		}
 
 		// Todo make sorting work with author and subject
-		//$order = $this->request->variable('sk','message_time');
-		$order = 'message_time';
-		$direction = $this->request->variable('sd','desc');
+		switch ($order)
+		{
+			case 't':
+			default:
+				$order = 'message_time';
+		}
+		switch ($direction)
+		{
+			case 'a':
+				$direction = 'ASC';
+				break;
+			case 'd':
+			default:
+				$direction = 'DESC';
+		}
 
-		$start = $this->request->variable('start',0);
-		// Todo get config for per page post
 
+		/*
+		 *
+		 * Setup SphinxQL
+		 *
+		 */
 
-
-		// Todo add author search
 
 		$conn = new Connection();
 		// Todo get host/port from config
@@ -163,49 +202,112 @@ class ucp_controller
 		$search = new SphinxQL($conn);
 		$search->select('id');
 		$search->from('pm');
-		$search->where('user_id', $this->user->id());
+		$search->where('user_id', $this->uid);
+
+		if($keywords)
+		{
+			$search->match($search_field, $keywords, true);
+		}
+		if ($from_id_array)
+		{
+			$search->where('author_id', 'IN', $from_id_array);
+		}
+		if ($sent_id_array)
+		{
+			$search->where('author_id', '=', $this->uid);
+			foreach ($sent_id_array as $id)
+			{
+				$search->where('user_id', $id);
+			}
+		}
 		if ($folder_ids)
 		{
 			$search->match('folder_id',$folder_ids,true);
 		}
-		if ($author_id_ary)
-		{
-			$search->where('author_id', 'IN', $author_id_ary);
-		}
-		if($keywords)
-		{
-			$search->match($sf, $keywords, true);
-		}
 		$search->orderBy($order,$direction);
 		$search->limit($start,$this->config['posts_per_page']);
+
+
+		/*
+		 *
+		 * Process SphinxQL
+		 *
+		 */
+
+
+		$rows = [];
+		$total_found = 0;
 		try
 		{
+			// Fetch matches
 			$result = $search->execute();
+			$rows = $result->fetchAllAssoc();
+
+			// Todo also fetch any errors
+			// Fetch the 'total found' variable from metadata
+			$search->query("SHOW META LIKE 'total_found'");
+			$result = $search->execute();
+			$meta_data = $result->fetchAllNum();
+			$total_found = $meta_data[0][1];
+
 		}
-		catch (exception $e)
+		catch (ConnectionException $e)
 		{
-			// Todo actually catch the error and do something
+			// Can't connect
+			trigger_error($this->language->lang('UCP_PMSEARCH_ERR_CONN'));
+			// Todo log errors
 		}
-		$rows = $result->fetchAllAssoc();
-		if (count($rows))
+		catch (DatabaseException $e)
 		{
-			$id_ary = [];
-			$sql_where = '';
+			// Bad sql or missing table or some other problem
+			trigger_error($this->language->lang('UCP_PMSEARCH_ERR_DB'));
+		}
+		catch (SphinxQLException $e)
+		{
+			// Unknown error
+			trigger_error($this->language->lang('UCP_PMSEARCH_ERR_SPHINX'));
+		}
+
+
+		/*
+		 *
+		 * Fetch messages
+		 *
+		 */
+
+		if ($rows)
+		{
+			// Collect message ids
+			$message_ids = [];
 			foreach ($rows as $row)
 			{
-				$id_ary[] = $row['id'];
+				$message_ids[] = $row['id'];
 
 			}
-			$sql_where .= $this->db->sql_in_set('p.msg_id', $id_ary);
+			$sql_where = $this->db->sql_in_set('p.msg_id', $message_ids);
+
+			// SQL for fetching messages from ids
 			$sql_array = [
-				'SELECT'    => 'p.msg_id, p.author_id, p.message_time, p.message_subject, p.message_text, p.bbcode_uid, p.bbcode_bitfield, u.username, u.username_clean, u.user_colour',
+				'SELECT'    => 'p.msg_id, p.author_id, u.username as author_name, u.user_colour as author_colour, p.message_time, p.message_subject, p.message_text, p.bbcode_uid, p.bbcode_bitfield, p.to_address, p.bcc_address, t.folder_id, f.folder_name',
 				'FROM'      => [
 					PRIVMSGS_TABLE => 'p',
 				],
+				// Get extra data
 				'LEFT_JOIN' => [
 					[
-						'FROM' => [USERS_TABLE => 'u'],
-						'ON'   => 'p.author_id = u.user_id',
+						// Get username and username colour for the author
+						'FROM'	=> [USERS_TABLE => 'u'],
+						'ON'	=> 'p.author_id = u.user_id',
+					],
+					[
+						// Get the folder id of the message for current user
+						'FROM'	=> [PRIVMSGS_TO_TABLE => 't'],
+						'ON'	=> 'p.msg_id = t.msg_id and t.user_id = ' . $this->uid,
+					],
+					[
+						// Get the folder name from id
+						'FROM'	=> [PRIVMSGS_FOLDER_TABLE => 'f'],
+						'ON'	=> 't.folder_id = f.folder_id'
 					],
 				],
 				'WHERE'     => $sql_where,
@@ -214,75 +316,177 @@ class ucp_controller
 			$sql = $this->db->sql_build_query('SELECT', $sql_array);
 			$result = $this->db->sql_query($sql);
 
+
+			/*
+			 *
+			 * Process returned rows
+			 *
+			 */
+
+
 			while ($row = $this->db->sql_fetchrow($result))
 			{
-				// Do we even need all this?
+				/*
+				 *
+				 * Process message text and bbcode
+				 *
+				 */
+
+
+				// Todo Do we need to censor text inside private messages?
 				$row['post_subject'] = censor_text($row['post_subject']);
-				$row['message_text'] = censor_text($row['message_text']);
 				if ($row['bbcode_uid'])
 				{
+					// Not entirely sure what this does, it was copied from search.php
 					$row['message_text'] = str_replace('[*:' . $row['bbcode_uid'] . ']', '&sdot;&nbsp;', $row['message_text']);
 				}
 				$parse_flags = ($row['bbcode_bitfield'] ? OPTION_FLAG_BBCODE : 0) | OPTION_FLAG_SMILIES;
-				$row['message_text'] = generate_text_for_display($row['message_text'], $row['bbcode_uid'], $row['bbcode_bitfield'], $parse_flags, false);
+				$row['message_text'] = generate_text_for_display($row['message_text'], $row['bbcode_uid'], $row['bbcode_bitfield'], $parse_flags, true);
 
 
+				/*
+				 *
+				 * Build recipient header
+				 *
+				 */
+
+
+				// Todo: We're not ready to handle bcc yet
+				$row['bcc_address'] = '';
+				$recipient = get_recipient_strings([ $row['msg_id'] => $row ]);
+				$recipient = implode(' ',$recipient[$row['msg_id']]);
+
+
+				/*
+				 *
+				 * Assign template block for messages
+				 *
+				 */
+
+
+				// Process folder name
+				switch ($row['folder_id'])
+				{
+					case -2:
+						$folder_name = 'Outbox';
+						break;
+					case -1:
+						$folder_name = 'Sent';
+						break;
+					case 0:
+						$folder_name = 'Inbox';
+						break;
+					default:
+						$folder_name = $row['folder_name'];
+				}
 				$this->template->assign_block_vars('searchresults', [
-					'POST_AUTHOR_FULL'   => get_username_string('full', $row['author_id'], $row['username'], $row['user_colour']),
-					'POST_AUTHOR_COLOUR' => get_username_string('colour', $row['author_id'], $row['username'], $row['user_colour']),
-					'POST_AUTHOR'        => get_username_string('username', $row['author_id'], $row['username'], $row['user_colour']),
-					'U_POST_AUTHOR'      => get_username_string('profile', $row['author_id'], $row['username'], $row['user_colour']),
+					'DATE'		=> (!empty($row['message_time'])) ? $this->user->format_date($row['message_time']) : '',
+					'AUTHOR'	=> get_username_string('full', $row['author_id'], $row['author_name'], $row['author_colour']),
+					'RECIPIENTS'=> $recipient,
+					'FOLDER'	=> $folder_name,
 
-					'POST_SUBJECT' => $row['message_subject'],
-					'POST_DATE'    => (!empty($row['message_time'])) ? $this->user->format_date($row['message_time']) : '',
-					'MESSAGE'      => $row['message_text'],
+					'SUBJECT'	=> $row['message_subject'],
+					'MESSAGE'	=> $row['message_text'],
 
-					'POST_ID'     => $row['id'], //http://127.0.0.1:8880/ucp.php?i=pm&mode=view&f=0&p=26812
-					'U_VIEW_POST' => append_sid("{$this->root}ucp.$this->ext", 'i=pm&mode=view&p=' . $row['msg_id']),
+					'VIEW_MESSAGE'	=> append_sid("{$this->root}ucp.$this->ext", 'i=pm&mode=view&p=' . $row['msg_id']),
 				]);
 			}
 			$this->db->sql_freeresult($result);
-
-
-			$meta = new SphinxQL($conn);
-			$meta->query("SHOW META LIKE 'total_found'");
-			$result = $meta->execute();
-			$meta_data = $result->fetchAllNum();
-			$total_found = $meta_data[0][1];
-
-			$start = $this->pagination->validate_start($start, $this->config['posts_per_page'], $total_found);
-			$url_parms  = $keywords ? '&keywords=' . urlencode($keywords) : '';
-			$url_parms .= $author ? '&author='.urlencode($author): '';
-			$url_parms .= $folders ? '&fid[]='.implode('&fid[]=', $folders): '';
-			$url_parms .= $sf ? '&sf='.$search_field : '';
-			// Sort by is broken
-			//$url_parms .= $order ? '&sk='.$order : '';
-			$url_parms .= $direction ? '&sd='.$direction : '';
-
-			$this->pagination->generate_template_pagination($this->u_action.$url_parms, 'pagination', 'start', $total_found, $this->config['posts_per_page'], $start);
-
 		}
 
+
+		/*
+		 *
+		 * Run pagination
+		 *
+		 */
+
+
+		$start = $this->pagination->validate_start($start, $this->config['posts_per_page'], $total_found);
+		$url_parms  = $keywords ? '&keywords=' . urlencode($keywords) : '';
+		$url_parms .= $from ? '&from=' . urlencode($from) : '';
+		$url_parms .= $sent ? '&to='. urlencode($sent) : '';
+		foreach ($folders as $f)
+		{
+			$url_parms .= '&fid[]=' . substr($f,strpos($f,'_') + 1,-1);
+		}
+		switch($search_field)
+		{
+			case 'message_text':
+				$search_field = 't';
+				break;
+			case 'message_subject':
+				$search_field = 's';
+				break;
+			default:
+				$search_field = 'b';
+		}
+		$url_parms .= '&sf='.$search_field;
+		switch($order)
+		{
+			case 'message_time':
+			default:
+				$order = 't';
+		}
+		$url_parms .= '&sk='.$order;
+		$url_parms .= $direction == 'ASC'? '&sd=a' : '&sd=d';
+		$this->pagination->generate_template_pagination($this->u_action.$url_parms, 'pagination', 'start', $total_found, $this->config['posts_per_page'], $start);
+
+
+		/*
+		 *
+		 * Get folder names
+		 *
+		 */
+
+
+		$folder_list = '';
+		if ($folders)
+		{
+			// Default folders
+			$folder_list .= in_array(0, $folders) ? 'Inbox ' : '';
+			$folder_list .= in_array(-1, $folders) ? 'Sent ' : '';
+			$folder_list .= in_array(-2, $folders) ? 'Outbox ' : '';
+
+			// Custom folders
+			$sql_where = $this->db->sql_in_set('folder_id', $folders);
+			$result = $this->db->sql_query('SELECT folder_name FROM ' . PRIVMSGS_FOLDER_TABLE . ' WHERE user_id = ' . $this->uid . ' AND ' . $sql_where);
+			foreach ($result as $row)
+			{
+				$folder_list .= $row['folder_name'];
+			}
+		}
+
+
+		/*
+		 *
+		 * Assign more template variables
+		 *
+		 */
+
+
+		// Adds user folders to private message navbar
 		$this->template->assign_var('S_PRIVMSGS', true);
-		// Assigns folder template var
-		get_folder($this->user->id());
+		get_folder($this->uid);
 
 		$this->template->assign_vars([
+			'SEARCH_LINK'		=> $this->u_action,
 			'SEARCH_MATCHES'	=> $this->language->lang('FOUND_SEARCH_MATCHES', $total_found),
-			'SEARCH_WORDS'		=> $keywords,
-			'U_SEARCH_TOPIC'	=> $this->u_action,
-			//'SEARCHED_QUERY'	=> $keywords, // Todo maybe later
-			//'SEARCHED_AUTHOR'	=> $author, // Todo maybe later
-			//'SEARCHEC_FOLDER'	=> $folders // Todo maybe later
+
+			'KEYWORDS'	=> $keywords,
+			'FROM'		=> $from,
+			'SENT'		=> $sent,
+			'FOLDER'	=> $folder_list,
 		]);
 
 	}
 	public function display_options()
 	{
-		// Create a form key for preventing CSRF attacks
-		add_form_key('crosstimecafe_pmsearch_ucp');
+		// Todo permission checking
+		// Todo remove stop-gap styles
 
-		// Is the form being submitted to us?
+		// Form key for preventing CSRF attacks
+		add_form_key('crosstimecafe_pmsearch_ucp');
 		if ($this->request->is_set_post('submit'))
 		{
 			if (!check_form_key('crosstimecafe_pmsearch_ucp'))
@@ -291,34 +495,50 @@ class ucp_controller
 			}
 		}
 
-		$this->template->assign_block_vars('folder_select', ['id'=>0,'name'=>'Inbox']);
-		$this->template->assign_block_vars('folder_select', ['id'=>-1,'name'=>'Sent']);
-		$this->template->assign_block_vars('folder_select', ['id'=>-2,'name'=>'Outbox']);
 
-		$folder = $this->find_folders();
-		foreach ($folder as $f)
+		/*
+		 *
+		 * Build search options
+		 *
+		 */
+
+
+		// Default folders
+		$this->template->assign_block_vars_array('folder_select',[
+			['id'=>0,'name'=>'Inbox'],
+			['id'=>-1,'name'=>'Sent'],
+			['id'=>-2,'name'=>'Outbox'],
+		]);
+
+		// Custom folders
+		$folders = $this->db->sql_query('SELECT folder_id, folder_name FROM ' . PRIVMSGS_FOLDER_TABLE . ' WHERE user_id = ' .$this->uid);
+		foreach ($folders as $f)
 		{
 			$this->template->assign_block_vars('folder_select', ['id'=>$f['folder_id'],'name'=>$f['folder_name']]);
 		}
 
+		// Sort options
+		$this->template->assign_block_vars_array('sorting',[
+			// This is the only one that works at this time
+			['value'=>'t','selected'=>1,'text'=>$this->language->lang('UCP_PMSEARCH_TIME')],
+		]);
 
-		$sort = '<select id="sk" name="sk" style="background-color: #fff;">';
-		//$sort .= '<option value="author_id">'.$this->language->lang('SORT_AUTHOR').'</option>';
-		// This is the only one that works
-		$sort .= '<option value="message_time" selected>'.$this->language->lang('UCP_PMSEARCH_TIME').'</option>';
-		//$sort .= '<option value="f">'.$this->language->lang('UCP_PMSEARCH_FOLDER').'</option>';
-		//$sort .= '<option value="subject">'.$this->language->lang('UCP_PMSEARCH_SUBJECT').'</option>';
-		$sort .= '</select>';
 
+		/*
+		 *
+		 * Assign template variables
+		 *
+		 */
+
+
+		// Displays the folders on the left of the page
 		$this->template->assign_var('S_PRIVMSGS', true);
+		get_folder($this->uid);
 
-		// Assigns folder template var
-		get_folder($this->user->id());
 		$this->template->assign_vars([
 			//'S_ERROR'		=> $s_errors,
 			//'ERROR_MSG'		=> $s_errors ? implode('<br />', $errors) : '',
 			'U_UCP_ACTION'	=> $this->u_action,
-			'S_SELECT_SORT_KEY'	=> $sort,
 		]);
 	}
 
@@ -327,11 +547,40 @@ class ucp_controller
 		$this->u_action = $u_action;
 	}
 
-	private function find_folders()
+	/**
+	 * Converts string of usernames to array of user ids
+	 *
+	 * @param string $str String of usernames seperated by commas
+	 * @return array
+	 */
+	private function get_ids(string $str): array
 	{
-		$sql = 'SELECT folder_id, folder_name
-			FROM ' . PRIVMSGS_FOLDER_TABLE . '
-			WHERE user_id = ' .$this->user->id();
-		return $this->db->sql_query($sql);
+		$id_array = [];
+		// Split from field and clean the strings
+		$names = explode(',',$str);
+		foreach ($names as &$name)
+		{
+			$name = utf8_clean_string($name);
+			// sql_in_set does its own escaping but just in case...
+			$name = $this->db->sql_escape($name);
+		}
+		unset($name);
+
+		// Fetch user ids from usernames
+		$where = $this->db->sql_in_set('username_clean',$names);
+		$result = $this->db->sql_query('SELECT user_id FROM ' . USERS_TABLE . ' WHERE ' . $where);
+		while ($row = $this->db->sql_fetchrow($result))
+		{
+			$id_array[] = (int) $row['user_id'];
+		}
+		$this->db->sql_freeresult($result);
+
+		// Stop here if we could not find any user ids
+		if (empty($id_array))
+		{
+			return [0];
+			//trigger_error('NO_SEARCH_RESULTS');
+		}
+		return $id_array;
 	}
 }

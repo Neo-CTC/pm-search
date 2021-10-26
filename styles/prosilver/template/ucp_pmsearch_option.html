@@ -13,8 +13,12 @@
 					<dd><input type="search" class="inputbox" name="keywords" id="keywords" size="40" title="{L_SEARCH_KEYWORDS}" /></dd>
 				</dl>
 				<dl>
-					<dt><label for="author">{L_SEARCH_AUTHOR}{L_COLON}</label><br /><span>{L_SEARCH_AUTHOR_EXPLAIN}</span></dt>
-					<dd><input type="search" class="inputbox" name="author" id="author" size="40" title="{L_SEARCH_AUTHOR}" /></dd>
+					<dt><label for="from">{L_UCP_PMSEARCH_FROM}{L_COLON}</label><br /><span>{L_UCP_PMSEARCH_SEPARATOR}</span></dt>
+					<dd><input type="search" class="inputbox" name="from" id="from" size="40" title="{L_SEARCH_AUTHOR}" /></dd>
+				</dl>
+				<dl>
+					<dt><label for="sent">{L_UCP_PMSEARCH_TO}{L_COLON}</label><br /><span>{L_UCP_PMSEARCH_SEPARATOR}</span></dt>
+					<dd><input type="search" class="inputbox" name="sent" id="sent" size="40" title="{L_UCP_PMSEARCH_TO}" /></dd>
 				</dl>
 			</fieldset>
 		</div>
@@ -36,11 +40,11 @@
 				</dl>
 				<dl>
 					<dt><label for="sf1">{L_SEARCH_WITHIN}{L_COLON}</label></dt>
-					<dd><label for="sf1"><input type="radio" name="sf" id="sf1" value="all" checked="checked" /> {L_UCP_PMSEARCH_SEARCH_BOTH}</label></dd>
-					<dd><label for="sf2"><input type="radio" name="sf" id="sf2" value="msgonly" /> {L_UCP_PMSEARCH_SEARCH_TEXT}</label></dd>
-					<dd><label for="sf3"><input type="radio" name="sf" id="sf3" value="titleonly" /> {L_UCP_PMSEARCH_SEARCH_SUBJECT}</label></dd>
+					<dd><label for="sf1"><input type="radio" name="sf" id="sf1" value="b" checked="checked" /> {L_UCP_PMSEARCH_SEARCH_BOTH}</label></dd>
+					<dd><label for="sf2"><input type="radio" name="sf" id="sf2" value="t" /> {L_UCP_PMSEARCH_SEARCH_TEXT}</label></dd>
+					<dd><label for="sf3"><input type="radio" name="sf" id="sf3" value="s" /> {L_UCP_PMSEARCH_SEARCH_SUBJECT}</label></dd>
 				</dl>
-
+<!-- Not yet ready
 				<hr class="dashed" />
 
 				<dl>
@@ -52,14 +56,18 @@
 				</dl>
 				<dl>
 					<dt><label for="sd">{L_RESULT_SORT}{L_COLON}</label></dt>
-					<dd>{S_SELECT_SORT_KEY}&nbsp;
-						<label for="sa"><input type="radio" name="sd" id="sa" value="asc" /> {L_SORT_ASCENDING}</label>
-						<label for="sd"><input type="radio" name="sd" id="sd" value="desc" checked="checked" /> {L_SORT_DESCENDING}</label>
+					<dd>
+						<select id="sk" name="sk" style="background-color: #fff">
+						{% for option in sorting %}
+							<option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.text }}</option>
+						{% endfor %}
+						</select>&nbsp;
+						<label for="sa"><input type="radio" name="sd" id="sa" value="a" /> {L_SORT_ASCENDING}</label>
+						<label for="sd"><input type="radio" name="sd" id="sd" value="d" checked="checked" /> {L_SORT_DESCENDING}</label>
 					</dd>
 				</dl>
 				<dl>
 					<dt><label>{L_RESULT_DAYS}{L_COLON}</label></dt>
-					<!-- Todo replace with timestamp -->
 					<dd>Replace me with timestamp</dd>
 				</dl>
 				<dl>
@@ -69,6 +77,7 @@
 					</dt>
 					<dd><input id="ch" name="ch" type="number" value="{{ DEFAULT_RETURN_CHARS }}" min="0" max="9999" title="{{ lang('RETURN_FIRST') }}"> {{ lang('POST_CHARACTERS') }}</dd>
 				</dl>
+				-->
 			</fieldset>
 		</div>
 	</div>
