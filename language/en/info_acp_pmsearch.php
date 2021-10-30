@@ -41,7 +41,7 @@ $lang = array_merge($lang, [
 
 	'ACP_PMSEARCH_PROGRAM_ERROR' 	=> 'Error with search backend.',
 	'ACP_PMSEARCH_MISSING_TABLE' 	=> 'Private message search table missing and could not be created.',
-	'ACP_PMSEARCH_CONNECTION_ERROR'	=> 'Could not connect to search.',
+	'ACP_PMSEARCH_CONNECTION_ERROR'	=> 'Unable connect to search engine.',
 	'ACP_PMSEARCH_NO_INDEX'			=> 'Index is empty. Please rebuild search index.',
 
 	'ACP_PMSEARCH_VERSION'			=> 'Search version',
@@ -53,5 +53,7 @@ $lang = array_merge($lang, [
 	'ACP_PMSEARCH_HOSTNAME'			=> 'Host address',
 	'ACP_PMSEARCH_PORT'				=> 'Host port',
 
-	'ACP_PMSEARCH_INDEX_COMMANDS'	=>	'Index maintenance'
+	'ACP_PMSEARCH_INDEX_COMMANDS'	=> 'Index maintenance',
+	'ACP_PMSEARCH_INDEX_ERR_DROP'	=> 'Could not drop table',
+	'ACP_PMSEARCH_INDEX_ERR_CREATE' => 'Could not create table',
 ]);

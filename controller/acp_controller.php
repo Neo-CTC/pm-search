@@ -11,6 +11,9 @@
 namespace crosstimecafe\pmsearch\controller;
 
 use Foolz\SphinxQL\Drivers\Mysqli\Connection;
+use Foolz\SphinxQL\Exception\ConnectionException;
+use Foolz\SphinxQL\Exception\DatabaseException;
+use Foolz\SphinxQL\Exception\SphinxQLException;
 use Foolz\SphinxQL\SphinxQL;
 
 class acp_controller
@@ -34,9 +37,7 @@ class acp_controller
 		$this->template	= $template;
 		$this->user		= $user;
 		$this->db		= $db;
-
 		$this->indexer = new SphinxQL(new Connection());
-
 	}
 
 	public function display_options()
@@ -86,7 +87,7 @@ class acp_controller
 
 	public function reindex()
 	{
-		// Todo test if searchd is offline
+		// Todo reload page once finished
 		$time = microtime(true);
 
 
@@ -100,11 +101,11 @@ class acp_controller
 			if ($result->count())
 			{
 				$this->indexer->query('DROP TABLE pm');
-				$this->search_execute('Could not drop table');
+				$this->search_execute($this->language->lang('ACP_PMSEARCH_INDEX_ERR_DROP'));
 			}
 
 			$this->indexer->query('CREATE TABLE pm(author_id integer,user_id multi,message_time timestamp,message_subject text ,message_text text ,folder_id text indexed)');
-			$this->search_execute('Could not create table');
+			$this->search_execute($this->language->lang('ACP_PMSEARCH_INDEX_ERR_CREATE'));
 		}
 		else
 		{
@@ -162,11 +163,8 @@ class acp_controller
 		$this->indexer->query('OPTIMIZE INDEX pm');
 		$this->search_execute();
 
-		$message = $this->language->lang('ACP_PMSEARCH_DONE')."<br />";
-		if (defined('DEBUG'))
-		{
-			$message .= 'Index time: '.round(microtime(true)-$time,1).' seconds<br /> Peek memory usage: '.round(memory_get_peak_usage()/1048576,2).'MiB';
-		}
+		$message = $this->language->lang('ACP_PMSEARCH_DONE') . '<br />';
+		$message .= 'Index time: '.round(microtime(true)-$time,1).' seconds<br /> Peek memory usage: '.round(memory_get_peak_usage()/1048576,2).'MiB';
 
 		trigger_error($message,E_USER_NOTICE);
 	}
@@ -175,23 +173,24 @@ class acp_controller
 	{
 		$this->u_action = $u_action;
 	}
-	private function search_execute($err_msg = 'Error in search backend')
+	private function search_execute($err_message = '')
 	{
 		$result = false;
 		try
 		{
 			$result = $this->indexer->execute();
 		}
-		catch (\Foolz\SphinxQL\Exception\DatabaseException $e)
+		catch (ConnectionException $e)
 		{
-			if(defined('DEBUG'))
-			{
-				trigger_error($e->getMessage(),E_USER_WARNING);
-			}
-			else
-			{
-				trigger_error($err_msg,E_USER_WARNING);
-			}
+			trigger_error($this->language->lang('ACP_PMSEARCH_CONNECTION_ERROR'),E_USER_WARNING);
+		}
+		catch (DatabaseException $e)
+		{
+			$err_message? trigger_error($err_message,E_USER_WARNING) : trigger_error($e->getMessage(),E_USER_WARNING);
+		}
+		catch (SphinxQLException $e)
+		{
+			trigger_error($e->getMessage(),E_USER_ERROR);
 		}
 		return $result;
 	}

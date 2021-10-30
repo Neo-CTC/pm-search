@@ -333,8 +333,7 @@ class ucp_controller
 				 */
 
 
-				// Todo Do we need to censor text inside private messages?
-				$row['post_subject'] = censor_text($row['post_subject']);
+				$row['message_subject'] = censor_text($row['message_subject']);
 				if ($row['bbcode_uid'])
 				{
 					// Not entirely sure what this does, it was copied from search.php
