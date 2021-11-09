@@ -25,35 +25,79 @@ class main_module
 	 */
 	public function main($id, $mode)
 	{
-		global $phpbb_container;
+		/*
+		 *
+		 * Setup variables
+		 *
+		 */
 
+
+		global $phpbb_container;
 		$acp_controller = $phpbb_container->get('crosstimecafe.pmsearch.controller.acp');
 		$language = $phpbb_container->get('language');
-
+		$language->add_lang('acp/search');
 		$request = $phpbb_container->get('request');
 		$action = $request->variable('action', '');
-		switch($action)
+		$engine = $request->variable('engine','');
+
+
+		/*
+		 *
+		 * Perform an action or select a mode
+		 *
+		 */
+
+
+		if($action)
 		{
-			case 'settings':
-				trigger_error('Not yet ready at this time');
-				break;
-			case 'reindex':
-				if(confirm_box(true))
-				{
-					$acp_controller->reindex();
-				}
-				else
-				{
-					$fields = build_hidden_fields(['action' => 'reindex']);
-					confirm_box(false,$language->lang('CONFIRM_OPERATION'),$fields);
-				}
-			break;
-			default:
-				$this->tpl_name = 'acp_pmsearch_body';
-				$this->page_title = $language->lang('ACP_PMSEARCH_TITLE');
-				$acp_controller->set_page_url($this->u_action);
-				$acp_controller->display_options();
-			break;
+			switch($action)
+			{
+				// Save search settings
+				case 'settings':
+					$acp_controller->save_settings();
+					break;
+
+				// Start search reindex
+				case 'delete':
+				case 'create':
+					if (!$engine)
+					{
+						trigger_error($language->lang('ACP_PMSEARCH_PROGRAM_ERROR'),E_USER_WARNING);
+					}
+					if(confirm_box(true))
+					{
+						$acp_controller->reindex();
+					}
+					else
+					{
+						$fields = build_hidden_fields(['action' => $action, 'engine' => $engine]);
+						confirm_box(false, $language->lang('CONFIRM_OPERATION'), $fields);
+					}
+					break;
+				default:
+					trigger_error($language->lang('ACP_PMSEARCH_ACTION_NONE'),E_USER_WARNING);
+			}
+		}
+		else
+		{
+			switch ($mode)
+			{
+				// Display settings page
+				case 'settings':
+					$this->tpl_name = 'acp_pmsearch_body';
+					$this->page_title = $language->lang('ACP_PMSEARCH_TITLE') . ' - ' . $language->lang('ACP_PMSEARCH_MODE_SETTINGS');
+					$acp_controller->set_page_url($this->u_action);
+					$acp_controller->display_options();
+					break;
+
+				// Display status page by default
+				case 'status':
+				default:
+					$this->tpl_name = 'acp_pmsearch_status';
+					$this->page_title = $language->lang('ACP_PMSEARCH_TITLE') . ' - ' . $language->lang('ACP_PMSEARCH_MODE_STATUS');
+					$acp_controller->set_page_url($this->u_action);
+					$acp_controller->display_status();
+			}
 		}
 	}
 }

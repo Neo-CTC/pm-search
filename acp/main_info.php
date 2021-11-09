@@ -21,9 +21,14 @@ class main_info
 			'filename'	=> '\crosstimecafe\pmsearch\acp\main_module',
 			'title'		=> 'ACP_PMSEARCH_TITLE',
 			'modes'		=> [
+				'status'	=> [
+					'title'	=> 'ACP_PMSEARCH_MODE_STATUS',
+					'auth'	=> 'ext_crosstimecafe/pmsearch && acl_a_board', // Todo auth
+					'cat'	=> ['ACP_PMSEARCH_TITLE'],
+				],
 				'settings'	=> [
-					'title'	=> 'ACP_PMSEARCH',
-					'auth'	=> 'ext_crosstimecafe/pmsearch && acl_a_board',
+					'title'	=> 'ACP_PMSEARCH_MODE_SETTINGS',
+					'auth'	=> 'ext_crosstimecafe/pmsearch && acl_a_board', // Todo auth
 					'cat'	=> ['ACP_PMSEARCH_TITLE'],
 				],
 			],

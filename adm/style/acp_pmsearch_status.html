@@ -1,0 +1,130 @@
+{% include 'overall_header.html' %}
+
+<h1>{{ lang('ACP_PMSEARCH_TITLE') }} - {{ lang('ACP_PMSEARCH_MODE_STATUS') }}</h1>
+{% if S_ERROR %}
+<div class="errorbox">
+	<h3>{{ lang('WARNING') }}</h3>
+	<p>{{ ERROR_MSG }}</p>
+</div>
+{% endif %}
+{% if program_error %}
+<div class="errorbox">
+	<h3>{{ lang('ACP_PMSEARCH_PROGRAM_ERROR') }}</h3>
+	<p>{{ ERROR_MSG }}</p>
+</div>
+{% endif %}
+
+<h2>Sphinx Fulltext{% if SPHINX_ACTIVE %} ({{ lang('ACTIVE') }}){% endif %}</h2>
+<div class="lside">
+	<table class="table2 zebra-table no-header" data-no-responsive-header="true">
+		<thead>
+		<tr>
+			<th>{{ lang('STATISTIC') }}</th>
+			<th>{{ lang('VALUE') }}</th>
+		</tr>
+		</thead>
+
+		<tbody>
+		<tr>
+			<td class="tabled">{{ lang('ACP_PMSEARCH_STATUS') ~ lang('COLON') }}</td>
+			<td class="tabled"><strong>{{ SPHINX_STATUS }}</strong></td>
+		</tr>
+		<tr>
+			<td class="tabled">{{ lang('ACP_PMSEARCH_VERSION') ~ lang('COLON') }}</td>
+			<td class="tabled"><strong>{{ SPHINX_VERSION }}</strong></td>
+		</tr>
+		<tr>
+			<td class="tabled">{{ lang('ACP_PMSEARCH_TOTAL_MESSAGES') ~ lang('COLON') }}</td>
+			<td class="tabled"><strong>{{ TOTAL_MESSAGES }}</strong></td>
+		</tr>
+		<tr>
+			<td class="tabled">{{ lang('ACP_PMSEARCH_INDEX_BYTES') ~ lang('COLON') }}</td>
+			<td class="tabled"><strong>{{ INDEX_BYTES }}</strong></td>
+		</tr>
+		<tr>
+			<td class="tabled">{{ lang('ACP_PMSEARCH_RAM_BYTES') ~ lang('COLON') }}</td>
+			<td class="tabled"><strong>{{ RAM_BYTES }}</strong></td>
+		</tr>
+		</tbody>
+	</table>
+</div>
+
+<fieldset>
+	<legend>Sphinx {{ lang('ACP_PMSEARCH_INDEX_COMMANDS') }}</legend>
+	<form id="sphinx_action_reindex" method="post" action="{{ U_ACTION }}" data-ajax="true">
+		<dl>
+			<dt>
+				<label for="sphinx_reindex">{{ lang('ACP_PMSEARCH_REINDEX') }}</label><br />
+				<span>&nbsp;</span>
+			</dt>
+			<dd>
+				<input type="hidden" name="action" value="create" />
+				<input type="hidden" name="engine" value="sphinx" />
+				<input class="button2" type="submit" id="sphinx_reindex" value="{L_RUN}" />
+			</dd>
+		</dl>
+	</form>
+	<form id="sphinx_action_delete" method="post" action="{{ U_ACTION }}" data-ajax="true">
+		<dl>
+			<dt>
+				<label for="sphinx_delete">{{ lang('ACP_PMSEARCH_ACTION_DROP') }}</label><br />
+				<span>&nbsp;</span>
+			</dt>
+			<dd>
+				<input type="hidden" name="action" value="delete" />
+				<input type="hidden" name="engine" value="sphinx" />
+				<input class="button2" type="submit" id="sphinx_delete" value="{L_RUN}" />
+			</dd>
+		</dl>
+	</form>
+</fieldset>
+
+<h2>MySQL Fulltext{% if MYSQL_ACTIVE %} ({{ lang('ACTIVE') }}){% endif %}</h2>
+<div class="lside">
+	<table class="table2 zebra-table no-header" data-no-responsive-header="true">
+		<thead>
+			<tr>
+				<th>{{ lang('STATISTIC') }}</th>
+				<th>{{ lang('VALUE') }}</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td class="tabled">{{ lang('ACP_PMSEARCH_STATUS') ~ lang('COLON') }}</td>
+				<td class="tabled"><strong>{%  if MYSQL_STATUS %}{{ lang('ACP_PMSEARCH_READY') }}{% else %}{{ lang('ACP_PMSEARCH_NO_INDEX') }}{% endif %}</strong></td>
+			</tr>
+		</tbody>
+	</table>
+</div>
+
+<fieldset>
+	<legend>MySQL Fulltext {{ lang('ACP_PMSEARCH_INDEX_COMMANDS') }}</legend>
+	<form id="mysql_action_reindex" method="post" action="{{ U_ACTION }}" data-ajax="true">
+		<dl>
+			<dt>
+				<label for="mysql_reindex">{{ lang('ACP_PMSEARCH_REINDEX') }}</label><br />
+				<span>&nbsp;</span>
+			</dt>
+			<dd>
+				<input type="hidden" name="action" value="create" />
+				<input type="hidden" name="engine" value="mysql" />
+				<input class="button2" type="submit" id="mysql_reindex" value="{L_RUN}" />
+			</dd>
+		</dl>
+	</form>
+	<form id="mysql_action_delete" method="post" action="{{ U_ACTION }}" data-ajax="true">
+		<dl>
+			<dt>
+				<label for="mysql_delete">{{ lang('ACP_PMSEARCH_ACTION_DROP') }}</label><br />
+				<span>&nbsp;</span>
+			</dt>
+			<dd>
+				<input type="hidden" name="action" value="delete" />
+				<input type="hidden" name="engine" value="mysql" />
+				<input class="button2" type="submit" id="mysql_delete" value="{L_RUN}" />
+			</dd>
+		</dl>
+	</form>
+</fieldset>
+
+{% include 'overall_footer.html' %}

@@ -11,6 +11,9 @@
 namespace crosstimecafe\pmsearch\event;
 
 use Foolz\SphinxQL\Drivers\Mysqli\Connection;
+use Foolz\SphinxQL\Exception\ConnectionException;
+use Foolz\SphinxQL\Exception\DatabaseException;
+use Foolz\SphinxQL\Exception\SphinxQLException;
 use Foolz\SphinxQL\SphinxQL;
 
 use Symfony\Component\Config\Definition\Exception\Exception;
@@ -75,9 +78,15 @@ class main_listener implements EventSubscriberInterface
 		{
 			$this->indexer->execute();
 		}
-		catch (Exception $e)
+		catch (ConnectionException $e)
 		{
-			// Todo error handling
+
+		}
+		catch (DatabaseException $e)
+		{
+		}
+		catch (SphinxQLException $e)
+		{
 		}
 	}
 	public function update($event)

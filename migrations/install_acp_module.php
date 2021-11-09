@@ -32,6 +32,7 @@ class install_acp_module extends \phpbb\db\migration\migration
 
 	public function update_data()
 	{
+		// Todo: Delete indexes on removal
 		return [
 			['module.add', [
 				'acp',
@@ -46,6 +47,10 @@ class install_acp_module extends \phpbb\db\migration\migration
 					 'modes'				=> ['settings'],
 				 ],
 			]],
+			['config.add',['pmsearch_enable',0]],
+			['config.add',['pmsearch_engine','sphinx']],
+			['config.add',['pmsearch_host','127.0.0.1']],
+			['config.add',['pmsearch_port','9306']],
 		];
 	}
 }
