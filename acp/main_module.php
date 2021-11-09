@@ -38,7 +38,7 @@ class main_module
 		$language->add_lang('acp/search');
 		$request = $phpbb_container->get('request');
 		$action = $request->variable('action', '');
-		$engine = $request->variable('engine','');
+		$engine = $request->variable('engine', '');
 
 
 		/*
@@ -48,9 +48,9 @@ class main_module
 		 */
 
 
-		if($action)
+		if ($action)
 		{
-			switch($action)
+			switch ($action)
 			{
 				// Save search settings
 				case 'settings':
@@ -62,9 +62,9 @@ class main_module
 				case 'create':
 					if (!$engine)
 					{
-						trigger_error($language->lang('ACP_PMSEARCH_PROGRAM_ERROR'),E_USER_WARNING);
+						trigger_error($language->lang('ACP_PMSEARCH_PROGRAM_ERROR'), E_USER_WARNING);
 					}
-					if(confirm_box(true))
+					if (confirm_box(true))
 					{
 						$acp_controller->reindex();
 					}
@@ -75,7 +75,7 @@ class main_module
 					}
 					break;
 				default:
-					trigger_error($language->lang('ACP_PMSEARCH_ACTION_NONE'),E_USER_WARNING);
+					trigger_error($language->lang('ACP_PMSEARCH_ACTION_NONE'), E_USER_WARNING);
 			}
 		}
 		else

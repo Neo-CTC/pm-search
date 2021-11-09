@@ -7,6 +7,7 @@
  * @license GNU General Public License, version 2 (GPL-2.0)
  *
  */
+
 namespace crosstimecafe\pmsearch\controller;
 
 use Foolz\SphinxQL\Drivers\Mysqli\Connection;
@@ -103,9 +104,9 @@ class ucp_controller
 		$sent = $this->request->variable('sent', '', true);
 		$folders = $this->request->variable('fid', [0]);
 		$search_field = $this->request->variable('sf', 'all');
-		$order = $this->request->variable('sk','message_time');
-		$direction = $this->request->variable('sd','desc');
-		$start = $this->request->variable('start',0);
+		$order = $this->request->variable('sk', 'message_time');
+		$direction = $this->request->variable('sd', 'desc');
+		$start = $this->request->variable('start', 0);
 
 
 		/*
@@ -126,7 +127,7 @@ class ucp_controller
 		}
 
 		// Un-escape quotes
-		$keywords = str_replace('&quot;','"',$keywords);
+		$keywords = str_replace('&quot;', '"', $keywords);
 
 		// Split from/sent field into an id array if needed
 		$from_id_array = [];
@@ -143,7 +144,7 @@ class ucp_controller
 		// Odd setup to make folder searching work with the default folders
 		$folder_ids = '';
 		$folder_id_array = [];
-		if($folders)
+		if ($folders)
 		{
 			foreach ($folders as $f)
 			{
@@ -167,7 +168,7 @@ class ucp_controller
 				break;
 			case 'b':
 			default:
-				$search_field = ['message_text','message_subject'];
+				$search_field = ['message_text', 'message_subject'];
 		}
 
 		// Todo make sorting work with author and subject
@@ -204,7 +205,7 @@ class ucp_controller
 		$search->from('pm');
 		$search->where('user_id', $this->uid);
 
-		if($keywords)
+		if ($keywords)
 		{
 			$search->match($search_field, $keywords, true);
 		}
@@ -222,10 +223,10 @@ class ucp_controller
 		}
 		if ($folder_ids)
 		{
-			$search->match('folder_id',$folder_ids,true);
+			$search->match('folder_id', $folder_ids, true);
 		}
-		$search->orderBy($order,$direction);
-		$search->limit($start,$this->config['posts_per_page']);
+		$search->orderBy($order, $direction);
+		$search->limit($start, $this->config['posts_per_page']);
 
 
 		/*
@@ -288,8 +289,8 @@ class ucp_controller
 
 			// SQL for fetching messages from ids
 			$sql_array = [
-				'SELECT'    => 'p.msg_id, p.author_id, u.username as author_name, u.user_colour as author_colour, p.message_time, p.message_subject, p.message_text, p.bbcode_uid, p.bbcode_bitfield, p.to_address, p.bcc_address, t.folder_id, f.folder_name',
-				'FROM'      => [
+				'SELECT'	=> 'p.msg_id, p.author_id, u.username as author_name, u.user_colour as author_colour, p.message_time, p.message_subject, p.message_text, p.bbcode_uid, p.bbcode_bitfield, p.to_address, p.bcc_address, t.folder_id, f.folder_name',
+				'FROM'		=> [
 					PRIVMSGS_TABLE => 'p',
 				],
 				// Get extra data
@@ -307,11 +308,11 @@ class ucp_controller
 					[
 						// Get the folder name from id
 						'FROM'	=> [PRIVMSGS_FOLDER_TABLE => 'f'],
-						'ON'	=> 't.folder_id = f.folder_id'
+						'ON'	=> 't.folder_id = f.folder_id',
 					],
 				],
-				'WHERE'     => $sql_where,
-				'ORDER_BY'  => $order . ' ' . $direction,
+				'WHERE'		=> $sql_where,
+				'ORDER_BY'	=> $order . ' ' . $direction,
 			];
 			$sql = $this->db->sql_build_query('SELECT', $sql_array);
 			$result = $this->db->sql_query($sql);
@@ -352,8 +353,8 @@ class ucp_controller
 
 				// Todo: We're not ready to handle bcc yet
 				$row['bcc_address'] = '';
-				$recipient = get_recipient_strings([ $row['msg_id'] => $row ]);
-				$recipient = implode(' ',$recipient[$row['msg_id']]);
+				$recipient = get_recipient_strings([$row['msg_id'] => $row]);
+				$recipient = implode(' ', $recipient[$row['msg_id']]);
 
 
 				/*
@@ -379,10 +380,10 @@ class ucp_controller
 						$folder_name = $row['folder_name'];
 				}
 				$this->template->assign_block_vars('searchresults', [
-					'DATE'		=> (!empty($row['message_time'])) ? $this->user->format_date($row['message_time']) : '',
-					'AUTHOR'	=> get_username_string('full', $row['author_id'], $row['author_name'], $row['author_colour']),
-					'RECIPIENTS'=> $recipient,
-					'FOLDER'	=> $folder_name,
+					'DATE'			=> (!empty($row['message_time'])) ? $this->user->format_date($row['message_time']) : '',
+					'AUTHOR'		=> get_username_string('full', $row['author_id'], $row['author_name'], $row['author_colour']),
+					'RECIPIENTS'	=> $recipient,
+					'FOLDER'		=> $folder_name,
 
 					'SUBJECT'	=> $row['message_subject'],
 					'MESSAGE'	=> $row['message_text'],
@@ -404,12 +405,12 @@ class ucp_controller
 		$start = $this->pagination->validate_start($start, $this->config['posts_per_page'], $total_found);
 		$url_parms  = $keywords ? '&keywords=' . urlencode($keywords) : '';
 		$url_parms .= $from ? '&from=' . urlencode($from) : '';
-		$url_parms .= $sent ? '&to='. urlencode($sent) : '';
+		$url_parms .= $sent ? '&to=' . urlencode($sent) : '';
 		foreach ($folders as $f)
 		{
-			$url_parms .= '&fid[]=' . substr($f,strpos($f,'_') + 1,-1);
+			$url_parms .= '&fid[]=' . substr($f, strpos($f, '_') + 1, -1);
 		}
-		switch($search_field)
+		switch ($search_field)
 		{
 			case 'message_text':
 				$search_field = 't';
@@ -420,16 +421,16 @@ class ucp_controller
 			default:
 				$search_field = 'b';
 		}
-		$url_parms .= '&sf='.$search_field;
-		switch($order)
+		$url_parms .= '&sf=' . $search_field;
+		switch ($order)
 		{
 			case 'message_time':
 			default:
 				$order = 't';
 		}
-		$url_parms .= '&sk='.$order;
-		$url_parms .= $direction == 'ASC'? '&sd=a' : '&sd=d';
-		$this->pagination->generate_template_pagination($this->u_action.$url_parms, 'pagination', 'start', $total_found, $this->config['posts_per_page'], $start);
+		$url_parms .= '&sk=' . $order;
+		$url_parms .= $direction == 'ASC' ? '&sd=a' : '&sd=d';
+		$this->pagination->generate_template_pagination($this->u_action . $url_parms, 'pagination', 'start', $total_found, $this->config['posts_per_page'], $start);
 
 
 		/*
@@ -479,6 +480,7 @@ class ucp_controller
 		]);
 
 	}
+
 	public function display_options()
 	{
 		// Todo permission checking
@@ -503,23 +505,23 @@ class ucp_controller
 
 
 		// Default folders
-		$this->template->assign_block_vars_array('folder_select',[
-			['id'=>0,'name'=>'Inbox'],
-			['id'=>-1,'name'=>'Sent'],
-			['id'=>-2,'name'=>'Outbox'],
+		$this->template->assign_block_vars_array('folder_select', [
+			['id' => 0, 'name' => 'Inbox'],
+			['id' => -1, 'name' => 'Sent'],
+			['id' => -2, 'name' => 'Outbox'],
 		]);
 
 		// Custom folders
-		$folders = $this->db->sql_query('SELECT folder_id, folder_name FROM ' . PRIVMSGS_FOLDER_TABLE . ' WHERE user_id = ' .$this->uid);
+		$folders = $this->db->sql_query('SELECT folder_id, folder_name FROM ' . PRIVMSGS_FOLDER_TABLE . ' WHERE user_id = ' . $this->uid);
 		foreach ($folders as $f)
 		{
-			$this->template->assign_block_vars('folder_select', ['id'=>$f['folder_id'],'name'=>$f['folder_name']]);
+			$this->template->assign_block_vars('folder_select', ['id' => $f['folder_id'], 'name' => $f['folder_name']]);
 		}
 
 		// Sort options
-		$this->template->assign_block_vars_array('sorting',[
+		$this->template->assign_block_vars_array('sorting', [
 			// This is the only one that works at this time
-			['value'=>'t','selected'=>1,'text'=>$this->language->lang('UCP_PMSEARCH_TIME')],
+			['value' => 't', 'selected' => 1, 'text' => $this->language->lang('UCP_PMSEARCH_TIME')],
 		]);
 
 
@@ -536,7 +538,7 @@ class ucp_controller
 
 		$this->template->assign_vars([
 			//'S_ERROR'		=> $s_errors,
-			//'ERROR_MSG'		=> $s_errors ? implode('<br />', $errors) : '',
+			//'ERROR_MSG'	=> $s_errors ? implode('<br />', $errors) : '',
 			'U_UCP_ACTION'	=> $this->u_action,
 		]);
 	}
@@ -556,7 +558,7 @@ class ucp_controller
 	{
 		$id_array = [];
 		// Split from field and clean the strings
-		$names = explode(',',$str);
+		$names = explode(',', $str);
 		foreach ($names as &$name)
 		{
 			$name = utf8_clean_string($name);
@@ -566,7 +568,7 @@ class ucp_controller
 		unset($name);
 
 		// Fetch user ids from usernames
-		$where = $this->db->sql_in_set('username_clean',$names);
+		$where = $this->db->sql_in_set('username_clean', $names);
 		$result = $this->db->sql_query('SELECT user_id FROM ' . USERS_TABLE . ' WHERE ' . $where);
 		while ($row = $this->db->sql_fetchrow($result))
 		{

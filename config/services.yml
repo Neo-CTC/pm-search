@@ -25,4 +25,4 @@ services:
             - '@dbal.conn'
             - '@user'
         tags:
-            - { name: event.listener}
+            - { name: event.listener }

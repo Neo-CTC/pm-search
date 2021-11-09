@@ -1,15 +1,15 @@
 {% include 'ucp_header.html' %}
 <h2 class="searchresults-title">{SEARCH_MATCHES}</h2>
 <p>
-<!-- IF KEYWORDS -->{L_SEARCHED_QUERY}{L_COLON} <strong>{KEYWORDS}</strong><br /><!-- ENDIF -->
-<!-- IF FROM -->{L_PM_FROM}{L_COLON} <strong>{FROM}</strong><br /><!-- ENDIF -->
-<!-- IF SENT -->{L_TO}{L_COLON} <strong>{SENT}</strong><br /><!-- ENDIF -->
-<!-- IF FOLDER -->{L_UCP_PMSEARCH_FOLDER}{L_COLON} <strong>{FOLDER}</strong><br /><!-- ENDIF -->
+	<!-- IF KEYWORDS -->{L_SEARCHED_QUERY}{L_COLON} <strong>{KEYWORDS}</strong><br/><!-- ENDIF -->
+	<!-- IF FROM -->{L_PM_FROM}{L_COLON} <strong>{FROM}</strong><br/><!-- ENDIF -->
+	<!-- IF SENT -->{L_TO}{L_COLON} <strong>{SENT}</strong><br/><!-- ENDIF -->
+	<!-- IF FOLDER -->{L_UCP_PMSEARCH_FOLDER}{L_COLON} <strong>{FOLDER}</strong><br/><!-- ENDIF -->
 </p>
 
 
 <p class="return-link">
-	<a class="arrow-{S_CONTENT_FLOW_BEGIN}" href="{SEARCH_LINK}">
+	<a class="arrow-{S_CONTENT_FLOW_BEGIN}" href="{{ SEARCH_LINK }}">
 		<i class="icon fa-angle-{S_CONTENT_FLOW_BEGIN} fa-fw icon-black" aria-hidden="true"></i><span>{L_UCP_PMSEARCH_RETURN}</span>
 	</a>
 </p>
@@ -29,13 +29,15 @@
 <!-- ENDIF -->
 <!-- BEGIN searchresults -->
 <style>
-	.inner .postprofile{
+	.inner .postprofile {
 		color: #000;
 	}
-	.inner .postprofile strong{
+
+	.inner .postprofile strong {
 		font-weight: bold;
 	}
-	.inner .postprofile a{
+
+	.inner .postprofile a {
 		font-weight: bold;
 	}
 </style>
@@ -43,21 +45,21 @@
 	<div class="inner">
 		<div class="postprofile">
 			<strong>{L_SENT_AT}{L_COLON}</strong> {searchresults.DATE}
-			<br /><strong>{L_PM_FROM}{L_COLON}</strong> {searchresults.AUTHOR}
-			<br /><strong>{L_TO}{L_COLON}</strong> {searchresults.RECIPIENTS}
-			<br /><strong>{L_UCP_PMSEARCH_FOLDER}{L_COLON}</strong> {searchresults.FOLDER}
+			<br/><strong>{L_PM_FROM}{L_COLON}</strong> {searchresults.AUTHOR}
+			<br/><strong>{L_TO}{L_COLON}</strong> {searchresults.RECIPIENTS}
+			<br/><strong>{L_UCP_PMSEARCH_FOLDER}{L_COLON}</strong> {searchresults.FOLDER}
 		</div>
 
 		<div class="postbody">
 
-			<h3><a href="{searchresults.VIEW_MESSAGE}">{searchresults.SUBJECT}</a></h3>
+			<h3><a href="{{ searchresults.VIEW_MESSAGE }}">{searchresults.SUBJECT}</a></h3>
 			<div class="content">{searchresults.MESSAGE}</div>
-			
+
 		</div>
 
 		<ul class="searchresults">
 			<li>
-				<a href="{searchresults.VIEW_MESSAGE}" class="arrow-{S_CONTENT_FLOW_END}">
+				<a href="{{ searchresults.VIEW_MESSAGE }}" class="arrow-{S_CONTENT_FLOW_END}">
 					<i class="icon fa-angle-{S_CONTENT_FLOW_END} fa-fw icon-black" aria-hidden="true"></i><span>{L_UCP_PMSEARCH_JUMP}</span>
 				</a>
 			</li>
@@ -76,7 +78,7 @@
 
 <div class="action-bar bottom">
 	<!-- IF .searchresults and (S_SELECT_SORT_DAYS or S_SELECT_SORT_KEY) -->
-	<form method="post" action="{S_SEARCH_ACTION}">
+	<form method="post" action="{{ S_SEARCH_ACTION }}">
 		<!-- INCLUDE display_options.html -->
 	</form>
 	<!-- ENDIF -->

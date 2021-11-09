@@ -25,11 +25,10 @@ class main_listener implements EventSubscriberInterface
 	public static function getSubscribedEvents()
 	{
 		return [
-			'core.submit_pm_after'	=> 'submit',
-
 			'core.ucp_pm_view_folder_get_pm_from_sql'	=> 'update', // When a user views their new PMs, place_pm_into_folder is called, and we need to reindex the folders for the messages.
 			'core.ucp_pm_view_message_before'			=> 'update', // However, there is no event for when a message is moved into a folder. Therefore, we use these two events.
 
+			'core.submit_pm_after'	=> 'submit',
 			'core.delete_pm_before'	=> 'remove', // I wish there was an event after the deletion but I can work with this
 
 			// Todo There is no event to catch a change in folders
@@ -52,7 +51,7 @@ class main_listener implements EventSubscriberInterface
 		$this->sql_fetch = [
 			'SELECT'	=> 'p.msg_id as id,p.author_id author_id,GROUP_CONCAT(t.user_id SEPARATOR \' \') user_id,p.message_time,p.message_subject,p.message_text,GROUP_CONCAT( CONCAT(t.user_id,\'_\',t.folder_id) SEPARATOR \' \') folder_id',
 			'FROM'		=> [PRIVMSGS_TABLE => 'p'],
-			'LEFT_JOIN'=> [
+			'LEFT_JOIN'	=> [
 				[
 					'FROM'	=> [PRIVMSGS_TO_TABLE => 't'],
 					'ON'	=> 'p.msg_id = t.msg_id',
@@ -65,14 +64,15 @@ class main_listener implements EventSubscriberInterface
 
 	public function submit($event)
 	{
-		$this->sql_fetch['WHERE'] = 'p.msg_id = '.$event['data']['msg_id'];
-		$sql = $this->db->sql_build_query('SELECT',$this->sql_fetch);
+		$this->sql_fetch['WHERE'] = 'p.msg_id = ' . $event['data']['msg_id'];
+		$sql = $this->db->sql_build_query('SELECT', $this->sql_fetch);
 		$result = $this->db->sql_query($sql);
 		$row = $this->db->sql_fetchrow($result);
 		$row['user_id'] = array_map('intval', explode(' ', $row['user_id']));
 
-		($event['mode'] != 'edit')? $this->indexer->insert() : $this->indexer->replace();
-		$this->indexer->into('pm')->set($row);
+		($event['mode'] != 'edit') ? $this->indexer->insert() : $this->indexer->replace();
+		$this->indexer->into('pm')->set($row)
+		;
 
 		try
 		{
@@ -89,6 +89,7 @@ class main_listener implements EventSubscriberInterface
 		{
 		}
 	}
+
 	public function update($event)
 	{
 		// Todo what if the message was deleted by the sender before it could be viewed by the recipient
@@ -96,8 +97,9 @@ class main_listener implements EventSubscriberInterface
 
 		$this->indexer->select('id')
 					  ->from('pm')
-					  ->where('user_id',$this->user->id())
-					  ->match('folder_id','"'.$this->user->id().'_-3"');
+					  ->where('user_id', $this->user->id())
+					  ->match('folder_id', '"' . $this->user->id() . '_-3"')
+		;
 		$result = false;
 		$total_found = 0;
 		try
@@ -112,7 +114,7 @@ class main_listener implements EventSubscriberInterface
 		{
 			// Todo error handling
 		}
-		if($total_found > 0)
+		if ($total_found > 0)
 		{
 			$id_arr = [];
 			foreach ($result as $row)
@@ -120,19 +122,21 @@ class main_listener implements EventSubscriberInterface
 				$id_arr[] = $row['id'];
 			}
 
-			$this->sql_fetch['WHERE'] = $this->db->sql_in_set('p.msg_id',$id_arr);
+			$this->sql_fetch['WHERE'] = $this->db->sql_in_set('p.msg_id', $id_arr);
 			$this->replace();
 
 		}
 	}
+
 	public function remove($event)
 	{
 		// Message was not yet sent to recipient, delete from index
-		if($event['folder_id'] == PRIVMSGS_OUTBOX)
+		if ($event['folder_id'] == PRIVMSGS_OUTBOX)
 		{
 			$this->indexer->delete()
 						  ->from('pm')
-						  ->where('id','IN',$event['msg_ids']);
+						  ->where('id', 'IN', $event['msg_ids'])
+			;
 		}
 		else
 		{
@@ -141,23 +145,25 @@ class main_listener implements EventSubscriberInterface
 			// This will give us a list of messages which other users still have
 			$keep = [];
 			$sql = 'SELECT msg_id
-				FROM '.PRIVMSGS_TO_TABLE.'
-				WHERE '.$this->db->sql_in_set('msg_id', array_map('intval', $event['msg_ids'])).' AND user_id != '.$event['user_id'].'
+				FROM ' . PRIVMSGS_TO_TABLE . '
+				WHERE ' . $this->db->sql_in_set('msg_id', array_map('intval', $event['msg_ids'])) . ' AND user_id != ' . $event['user_id'] . '
 				GROUP BY msg_id';
 			$result = $this->db->sql_query($sql);
-			while($row = $this->db->sql_fetchrow($result))
+			while ($row = $this->db->sql_fetchrow($result))
 			{
 				$keep[] = $row['msg_id'];
 			}
 
-			$delete = array_diff($event['msg_ids'],$keep);
+			$delete = array_diff($event['msg_ids'], $keep);
 
 			if ($delete)
 			{
 				$this->indexer->delete()
 							  ->from('pm')
-							  ->where('id','IN',$delete);
-				try{
+							  ->where('id', 'IN', $delete)
+				;
+				try
+				{
 					$this->indexer->execute();
 				}
 				catch (Exception $e)
@@ -182,7 +188,9 @@ class main_listener implements EventSubscriberInterface
 		$sql = $this->db->sql_build_query('SELECT', $this->sql_fetch);
 		$result = $this->db->sql_query($sql);
 
-		$this->indexer->replace()->into('pm');
+		$this->indexer->replace()
+					  ->into('pm')
+		;
 		while ($row = $this->db->sql_fetchrow($result))
 		{
 			$row['user_id'] = array_map('intval', explode(' ', $row['user_id']));

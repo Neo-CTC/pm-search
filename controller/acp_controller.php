@@ -52,12 +52,12 @@ class acp_controller
 
 		$conn = new Connection();
 		$conn->setParams([
-			'host'	=> $this->config['pmsearch_host'],
-			'port'	=> $this->config['pmsearch_port'],
+			'host' => $this->config['pmsearch_host'],
+			'port' => $this->config['pmsearch_port'],
 			'options' => [
 				// Todo get error message for timeouts
 				MYSQLI_OPT_CONNECT_TIMEOUT => 2,
-			]
+			],
 		]);
 		$this->indexer = new SphinxQL($conn);
 		$this->sphinxql_error_msg = '';
@@ -136,7 +136,7 @@ class acp_controller
 		 */
 
 
-		$result = $this->db->sql_query('SHOW INDEX FROM '. PRIVMSGS_TABLE . ' WHERE key_name = "message_text"');
+		$result = $this->db->sql_query('SHOW INDEX FROM ' . PRIVMSGS_TABLE . ' WHERE key_name = "message_text"');
 		if ($this->db->sql_fetchrow($result))
 		{
 			$this->template->assign_var('MYSQL_STATUS', $this->language->lang('ACP_PMSEARCH_READY'));
@@ -154,7 +154,7 @@ class acp_controller
 		 */
 
 
-		$this->config['pmsearch_engine'] == 'sphinx'? $this->template->assign_var('SPHINX_ACTIVE', 1) : $this->template->assign_var('MYSQL_ACTIVE', 1);
+		$this->config['pmsearch_engine'] == 'sphinx' ? $this->template->assign_var('SPHINX_ACTIVE', 1) : $this->template->assign_var('MYSQL_ACTIVE', 1);
 	}
 
 	public function display_options()
@@ -185,10 +185,10 @@ class acp_controller
 		 */
 
 
-		$type = $this->request->variable('search_type','sphinx');
+		$type = $this->request->variable('search_type', 'sphinx');
 		$enabled = $this->request->variable('enable_search', 0);
 		$host = $this->request->variable('hostname', '127.0.0.1');
-		$port = $this->request->variable('port',9036);
+		$port = $this->request->variable('port', 9036);
 
 
 		/*
@@ -221,7 +221,7 @@ class acp_controller
 			$this->config->set('pmsearch_engine', 'mysql');
 		}
 
-		trigger_error($this->language->lang('CONFIG_UPDATED'),E_USER_NOTICE);
+		trigger_error($this->language->lang('CONFIG_UPDATED'), E_USER_NOTICE);
 	}
 
 	public function reindex()
@@ -237,7 +237,7 @@ class acp_controller
 
 
 		$action = $this->request->variable('action', '');
-		$engine = $this->request->variable('engine','');
+		$engine = $this->request->variable('engine', '');
 		$time = microtime(true);
 
 		if ($engine == 'sphinx')
@@ -261,7 +261,7 @@ class acp_controller
 			elseif ($version === false)
 			{
 				// Couldn't find the version number or another major error
-				trigger_error($this->language->lang('ACP_PMSEARCH_PROGRAM_ERROR'),E_USER_ERROR);
+				trigger_error($this->language->lang('ACP_PMSEARCH_PROGRAM_ERROR'), E_USER_ERROR);
 			}
 
 			// Does our index exist? Again, another big difference between Sphinx and Manticore
@@ -379,15 +379,16 @@ class acp_controller
 						p.message_subject,
 						p.message_text,
 						GROUP_CONCAT( CONCAT(t.user_id,'_',t.folder_id) SEPARATOR ' ') folder_id
-						FROM ".PRIVMSGS_TABLE. ' p
-						JOIN ' .PRIVMSGS_TO_TABLE. ' t ON p.msg_id = t.msg_id
+						FROM " . PRIVMSGS_TABLE . ' p
+						JOIN ' . PRIVMSGS_TO_TABLE . ' t ON p.msg_id = t.msg_id
 						WHERE t.pm_deleted = 0
 						GROUP BY p.msg_id
 						ORDER BY p.msg_id ASC';
-				$result = $this->db->sql_query_limit($query,500);
-				while($rows = $this->db->sql_fetchrowset($result))
+				$result = $this->db->sql_query_limit($query, 500);
+				while ($rows = $this->db->sql_fetchrowset($result))
 				{
-					$this->indexer->insert()->into('pm');
+					$this->indexer->insert()->into('pm')
+					;
 					foreach ($rows as $row)
 					{
 						// MySQL returns user_id as a string of ids; explode user_id into an array of integers
@@ -401,17 +402,17 @@ class acp_controller
 						switch ($this->sphinxql_error_num)
 						{
 							case SphinxQL_ERR_CONNECTION:
-								trigger_error($this->language->lang('ACP_PMSEARCH_CONNECTION_ERROR'),E_USER_WARNING);
+								trigger_error($this->language->lang('ACP_PMSEARCH_CONNECTION_ERROR'), E_USER_WARNING);
 								break;
 							case SphinxQL_ERR_PROGRAM:
 							default:
 								// Todo send to log
-								trigger_error($this->language->lang('ACP_PMSEARCH_PROGRAM_ERROR').'<br />'.$this->sphinxql_error_msg, E_USER_WARNING);
+								trigger_error($this->language->lang('ACP_PMSEARCH_PROGRAM_ERROR') . '<br />' . $this->sphinxql_error_msg, E_USER_WARNING);
 								break;
 						}
 					}
 					$offset += 500;
-					$result = $this->db->sql_query_limit($query,500,$offset);
+					$result = $this->db->sql_query_limit($query, 500, $offset);
 				}
 
 				// Not sure if this is needed, but it can't hurt
@@ -430,8 +431,8 @@ class acp_controller
 			 */
 
 
-			$message .= '<br />' . $this->language->lang('ACP_PMSEARCH_INDEX_STATS',round(microtime(true)-$time,1),round(memory_get_peak_usage()/1048576,2));
-			trigger_error($message,E_USER_NOTICE);
+			$message .= '<br />' . $this->language->lang('ACP_PMSEARCH_INDEX_STATS', round(microtime(true) - $time, 1), round(memory_get_peak_usage() / 1048576, 2));
+			trigger_error($message, E_USER_NOTICE);
 		}
 		elseif ($engine == 'mysql')
 		{
@@ -491,18 +492,18 @@ class acp_controller
 			return false;
 		}
 
-		if($result->count())
+		if ($result->count())
 		{
 			// Only Manticore 4+ returns a version
 			$row = $result->fetchAssoc();
-			return (preg_match('/^([\d.]+)/',$row['Value'],$m)) ? explode('.', $m) : false;
+			return (preg_match('/^([\d.]+)/', $row['Value'], $m)) ? explode('.', $m) : false;
 		}
 		else
 		{
 			// More work is needed to find the version for Sphinx 2+
-			$my = new mysqli($this->config['pmsearch_host'],'','','',$this->config['pmsearch_port']);
+			$my = new mysqli($this->config['pmsearch_host'], '', '', '', $this->config['pmsearch_port']);
 			$v = $my->get_server_info();
-			return (preg_match('/^([\d.]+)/',$v,$m)) ? explode('.', $m[1]) : false;
+			return (preg_match('/^([\d.]+)/', $v, $m)) ? explode('.', $m[1]) : false;
 		}
 	}
 
@@ -510,18 +511,18 @@ class acp_controller
 	{
 		$index ? $this->indexer->query("SHOW TABLES LIKE '$index'") : $this->indexer->query('SHOW TABLES');
 		$result = $this->search_execute();
-		if($result)
+		if ($result)
 		{
 			$list = [];
-			while($row = $result->fetchAssoc())
+			while ($row = $result->fetchAssoc())
 			{
 				$list[] = $row['Value'];
 			}
-			return  $list;
+			return $list;
 		}
 		else
 		{
-			trigger_error(print_r('Error?',true));
+			trigger_error(print_r('Error?', true));
 			return false;
 		}
 	}

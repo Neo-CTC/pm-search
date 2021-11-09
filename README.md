@@ -8,7 +8,7 @@ Copy the contents of the [sample_sphinx.conf](sample_sphinx.conf) file into your
 
 Go to "ACP" > "Customise" > "Extensions" and enable the "PM Search" extension.
 
-Go to "ACP" > "Extensions" > "PM Search" > "Settings" and Rebuild search index 
+Go to "ACP" > "Extensions" > "PM Search" > "Settings" and Rebuild search index
 
 ## License
 

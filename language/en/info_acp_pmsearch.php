@@ -41,9 +41,9 @@ $lang = array_merge($lang, [
 	'ACP_PMSEARCH_MODE_STATUS'		=> 'Status',
 
 	// Index status
-	'ACP_PMSEARCH_STATUS'			=> 'Status',
-	'ACP_PMSEARCH_READY'			=> 'Ready',
-	'ACP_PMSEARCH_NO_INDEX'			=> 'Index missing',
+	'ACP_PMSEARCH_STATUS'	=> 'Status',
+	'ACP_PMSEARCH_READY'	=> 'Ready',
+	'ACP_PMSEARCH_NO_INDEX'	=> 'Index missing',
 
 	// Sphinx index status
 	'ACP_PMSEARCH_VERSION'			=> 'Version',
@@ -65,7 +65,7 @@ $lang = array_merge($lang, [
 
 	// Error messages
 	'ACP_PMSEARCH_CONNECTION_ERROR'	=> 'Unable to connect to search engine',
-	'ACP_PMSEARCH_PROGRAM_ERROR' 	=> 'Error with search backend',
-	'ACP_PMSEARCH_MISSING_TABLE' 	=> 'Private message search index missing and could not be created',
+	'ACP_PMSEARCH_PROGRAM_ERROR'	=> 'Error with search backend',
+	'ACP_PMSEARCH_MISSING_TABLE'	=> 'Private message search index missing and could not be created',
 	'ACP_PMSEARCH_UNKNOWN_VERSION'	=> 'Unknown Sphinx or Manticore version',
 ]);
