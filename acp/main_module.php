@@ -16,15 +16,10 @@ class main_module
 	public $tpl_name;
 	public $u_action;
 
-	/**
-	 * Main ACP module
-	 *
-	 * @param int    $id   The module ID
-	 * @param string $mode The module mode (for example: manage or settings)
-	 * @throws \Exception
-	 */
 	public function main($id, $mode)
 	{
+
+
 		/*
 		 *
 		 * Setup variables
@@ -35,15 +30,17 @@ class main_module
 		global $phpbb_container;
 		$acp_controller = $phpbb_container->get('crosstimecafe.pmsearch.controller.acp');
 		$language       = $phpbb_container->get('language');
+		$request        = $phpbb_container->get('request');
+
+		$action = $request->variable('action', '');
+		$engine = $request->variable('engine', '');
+
 		$language->add_lang('acp/search');
-		$request = $phpbb_container->get('request');
-		$action  = $request->variable('action', '');
-		$engine  = $request->variable('engine', '');
 
 
 		/*
 		 *
-		 * Perform an action or select a mode
+		 * Perform an action or display a mode
 		 *
 		 */
 
@@ -74,8 +71,6 @@ class main_module
 						confirm_box(false, $language->lang('CONFIRM_OPERATION'), $fields);
 					}
 					break;
-				default:
-					trigger_error($language->lang('ACP_PMSEARCH_ACTION_NONE'), E_USER_WARNING);
 			}
 		}
 		else

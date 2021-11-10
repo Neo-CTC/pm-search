@@ -55,7 +55,7 @@
 			<dt>
 				<label for="sphinx_port">{{ lang('FULLTEXT_SPHINX_PORT') }}</label>
 				<br/><span>{{ lang('FULLTEXT_SPHINX_PORT_EXPLAIN') }}</span></dt>
-			<dd><input type="number" min="1" max="65535" placeholder="9036" id="sphinx_port" name="port"
+			<dd><input type="number" min="1" max="65535" placeholder="9306" id="sphinx_port" name="port"
 					   value="{{ port }}"/></dd>
 		</dl>
 	</fieldset>
@@ -65,7 +65,7 @@
 			<input type="hidden" name="action" value="settings"/>
 			<input id="submit" class="button1" type="submit" name="submit" value="{{ lang('SUBMIT') }}"/>&nbsp
 		</p>
-		{S_FORM_TOKEN}
+		{{ S_FORM_TOKEN }}
 		<!-- Todo finish form token -->
 	</fieldset>
 </form>

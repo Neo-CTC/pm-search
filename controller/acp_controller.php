@@ -125,7 +125,18 @@ class acp_controller
 		}
 		else
 		{
-			$this->template->assign_var('SPHINX_STATUS', $this->language->lang('ACP_PMSEARCH_NO_INDEX'));
+			switch ($this->sphinxql_error_num)
+			{
+				case SphinxQL_ERR_CONNECTION:
+					$this->template->assign_var('SPHINX_STATUS', $this->language->lang('ACP_PMSEARCH_CONNECTION_ERROR'));
+					break;
+				case SphinxQL_ERR_Data:
+					$this->template->assign_var('SPHINX_STATUS', $this->language->lang('ACP_PMSEARCH_NO_INDEX'));
+					break;
+				case SphinxQL_ERR_PROGRAM:
+					$this->template->assign_var('SPHINX_STATUS', $this->sphinxql_error_msg);
+					break;
+			}
 		}
 
 
@@ -159,12 +170,16 @@ class acp_controller
 
 	public function display_options()
 	{
+
+
 		/*
 		 *
 		 * Set template variables
 		 *
 		 */
 
+
+		add_form_key('crosstimecafe_pmsearch_acp_settings');
 
 		$this->template->assign_vars([
 			'U_ACTION' => $this->u_action,
@@ -178,6 +193,21 @@ class acp_controller
 
 	public function save_settings()
 	{
+
+
+		/*
+		 *
+		 * Validate form
+		 *
+		 */
+
+
+		if (!check_form_key('crosstimecafe_pmsearch_acp_settings'))
+		{
+			trigger_error($this->language->lang('FORM_INVALID'));
+		}
+
+
 		/*
 		 *
 		 * Collect input
@@ -188,17 +218,17 @@ class acp_controller
 		$type    = $this->request->variable('search_type', 'sphinx');
 		$enabled = $this->request->variable('enable_search', 0);
 		$host    = $this->request->variable('hostname', '127.0.0.1');
-		$port    = $this->request->variable('port', 9036);
+		$port    = $this->request->variable('port', 9306);
 
 
 		/*
 		 *
-		 * Filter input
+		 * Validate input
 		 *
 		 */
 
 		// Todo: validate host, maybe
-		$port = ($port > 0 && $port <= 65535) ? $port : 9036;
+		$port = ($port > 0 && $port <= 65535) ? $port : 9306;
 
 
 		/*
@@ -432,7 +462,7 @@ class acp_controller
 
 
 			$message .= '<br />' . $this->language->lang('ACP_PMSEARCH_INDEX_STATS', round(microtime(true) - $time, 1), round(memory_get_peak_usage() / 1048576, 2));
-			trigger_error($message, E_USER_NOTICE);
+			trigger_error($message);
 		}
 		elseif ($engine == 'mysql')
 		{
@@ -522,7 +552,6 @@ class acp_controller
 		}
 		else
 		{
-			trigger_error(print_r('Error?', true));
 			return false;
 		}
 	}

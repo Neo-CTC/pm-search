@@ -10,9 +10,6 @@
 
 namespace crosstimecafe\pmsearch\acp;
 
-/**
- * PM Search ACP module info.
- */
 class main_info
 {
 	public function module()
@@ -23,12 +20,12 @@ class main_info
 			'modes'    => [
 				'status'   => [
 					'title' => 'ACP_PMSEARCH_MODE_STATUS',
-					'auth'  => 'ext_crosstimecafe/pmsearch && acl_a_board', // Todo auth
+					'auth'  => 'ext_crosstimecafe/pmsearch && acl_a_board', // acl_a_board: Can alter board settings/check for updates, basically any admin
 					'cat'   => ['ACP_PMSEARCH_TITLE'],
 				],
 				'settings' => [
 					'title' => 'ACP_PMSEARCH_MODE_SETTINGS',
-					'auth'  => 'ext_crosstimecafe/pmsearch && acl_a_board', // Todo auth
+					'auth'  => 'ext_crosstimecafe/pmsearch && acl_a_board', // acl_a_board: Can alter board settings/check for updates, basically any admin
 					'cat'   => ['ACP_PMSEARCH_TITLE'],
 				],
 			],
