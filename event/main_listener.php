@@ -4,7 +4,7 @@
  * PM Search. An extension for the phpBB Forum Software package.
  *
  * @copyright (c) 2021, NeoDev
- * @license GNU General Public License, version 2 (GPL-2.0)
+ * @license       GNU General Public License, version 2 (GPL-2.0)
  *
  */
 
@@ -25,11 +25,13 @@ class main_listener implements EventSubscriberInterface
 	public static function getSubscribedEvents()
 	{
 		return [
-			'core.ucp_pm_view_folder_get_pm_from_sql'	=> 'update', // When a user views their new PMs, place_pm_into_folder is called, and we need to reindex the folders for the messages.
-			'core.ucp_pm_view_message_before'			=> 'update', // However, there is no event for when a message is moved into a folder. Therefore, we use these two events.
+			'core.ucp_pm_view_folder_get_pm_from_sql' => 'update',
+			// When a user views their new PMs, place_pm_into_folder is called, and we need to reindex the folders for the messages.
+			'core.ucp_pm_view_message_before'         => 'update',
+			// However, there is no event for when a message is moved into a folder. Therefore, we use these two events.
 
-			'core.submit_pm_after'	=> 'submit',
-			'core.delete_pm_before'	=> 'remove', // I wish there was an event after the deletion but I can work with this
+			'core.submit_pm_after'  => 'submit',
+			'core.delete_pm_before' => 'remove', // I wish there was an event after the deletion but I can work with this
 
 			// Todo There is no event to catch a change in folders
 		];
@@ -42,33 +44,33 @@ class main_listener implements EventSubscriberInterface
 
 	public function __construct(\phpbb\db\driver\driver_interface $db, \phpbb\user $user)
 	{
-		$this->db = $db;
-		$this->user = $user;
-		$conn = new Connection();
+		$this->db      = $db;
+		$this->user    = $user;
+		$conn          = new Connection();
 		$this->indexer = new SphinxQL($conn);
 
 		// Mysql only. Might work with others but idk.
 		$this->sql_fetch = [
-			'SELECT'	=> 'p.msg_id as id,p.author_id author_id,GROUP_CONCAT(t.user_id SEPARATOR \' \') user_id,p.message_time,p.message_subject,p.message_text,GROUP_CONCAT( CONCAT(t.user_id,\'_\',t.folder_id) SEPARATOR \' \') folder_id',
-			'FROM'		=> [PRIVMSGS_TABLE => 'p'],
-			'LEFT_JOIN'	=> [
+			'SELECT'    => 'p.msg_id as id,p.author_id author_id,GROUP_CONCAT(t.user_id SEPARATOR \' \') user_id,p.message_time,p.message_subject,p.message_text,GROUP_CONCAT( CONCAT(t.user_id,\'_\',t.folder_id) SEPARATOR \' \') folder_id',
+			'FROM'      => [PRIVMSGS_TABLE => 'p'],
+			'LEFT_JOIN' => [
 				[
-					'FROM'	=> [PRIVMSGS_TO_TABLE => 't'],
-					'ON'	=> 'p.msg_id = t.msg_id',
+					'FROM' => [PRIVMSGS_TO_TABLE => 't'],
+					'ON'   => 'p.msg_id = t.msg_id',
 				],
 			],
-			'GROUP_BY'	=> 'p.msg_id',
-			'ORDER_BY'	=> 'p.msg_id ASC'
+			'GROUP_BY'  => 'p.msg_id',
+			'ORDER_BY'  => 'p.msg_id ASC',
 		];
 	}
 
 	public function submit($event)
 	{
 		$this->sql_fetch['WHERE'] = 'p.msg_id = ' . $event['data']['msg_id'];
-		$sql = $this->db->sql_build_query('SELECT', $this->sql_fetch);
-		$result = $this->db->sql_query($sql);
-		$row = $this->db->sql_fetchrow($result);
-		$row['user_id'] = array_map('intval', explode(' ', $row['user_id']));
+		$sql                      = $this->db->sql_build_query('SELECT', $this->sql_fetch);
+		$result                   = $this->db->sql_query($sql);
+		$row                      = $this->db->sql_fetchrow($result);
+		$row['user_id']           = array_map('intval', explode(' ', $row['user_id']));
 
 		($event['mode'] != 'edit') ? $this->indexer->insert() : $this->indexer->replace();
 		$this->indexer->into('pm')->set($row)
@@ -100,14 +102,14 @@ class main_listener implements EventSubscriberInterface
 					  ->where('user_id', $this->user->id())
 					  ->match('folder_id', '"' . $this->user->id() . '_-3"')
 		;
-		$result = false;
+		$result      = false;
 		$total_found = 0;
 		try
 		{
 			$result = $this->indexer->execute();
 
-			$meta = $this->indexer->query("SHOW META LIKE 'total_found'")->execute();
-			$meta_data = $meta->fetchAllNum();
+			$meta        = $this->indexer->query("SHOW META LIKE 'total_found'")->execute();
+			$meta_data   = $meta->fetchAllNum();
 			$total_found = $meta_data[0][1];
 		}
 		catch (Exception $e)
@@ -143,8 +145,8 @@ class main_listener implements EventSubscriberInterface
 			// Are we the last user with this message?
 
 			// This will give us a list of messages which other users still have
-			$keep = [];
-			$sql = 'SELECT msg_id
+			$keep   = [];
+			$sql    = 'SELECT msg_id
 				FROM ' . PRIVMSGS_TO_TABLE . '
 				WHERE ' . $this->db->sql_in_set('msg_id', array_map('intval', $event['msg_ids'])) . ' AND user_id != ' . $event['user_id'] . '
 				GROUP BY msg_id';
@@ -185,7 +187,7 @@ class main_listener implements EventSubscriberInterface
 
 	private function replace()
 	{
-		$sql = $this->db->sql_build_query('SELECT', $this->sql_fetch);
+		$sql    = $this->db->sql_build_query('SELECT', $this->sql_fetch);
 		$result = $this->db->sql_query($sql);
 
 		$this->indexer->replace()

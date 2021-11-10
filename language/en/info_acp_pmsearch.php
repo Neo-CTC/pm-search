@@ -4,7 +4,7 @@
  * PM Search. An extension for the phpBB Forum Software package.
  *
  * @copyright (c) 2021, NeoDev
- * @license GNU General Public License, version 2 (GPL-2.0)
+ * @license       GNU General Public License, version 2 (GPL-2.0)
  *
  */
 
@@ -36,36 +36,36 @@ if (empty($lang) || !is_array($lang))
 
 $lang = array_merge($lang, [
 	// ACP module
-	'ACP_PMSEARCH_TITLE'			=> 'PM Search',
-	'ACP_PMSEARCH_MODE_SETTINGS'	=> 'Settings',
-	'ACP_PMSEARCH_MODE_STATUS'		=> 'Status',
+	'ACP_PMSEARCH_TITLE'            => 'PM Search',
+	'ACP_PMSEARCH_MODE_SETTINGS'    => 'Settings',
+	'ACP_PMSEARCH_MODE_STATUS'      => 'Status',
 
 	// Index status
-	'ACP_PMSEARCH_STATUS'	=> 'Status',
-	'ACP_PMSEARCH_READY'	=> 'Ready',
-	'ACP_PMSEARCH_NO_INDEX'	=> 'Index missing',
+	'ACP_PMSEARCH_STATUS'           => 'Status',
+	'ACP_PMSEARCH_READY'            => 'Ready',
+	'ACP_PMSEARCH_NO_INDEX'         => 'Index missing',
 
 	// Sphinx index status
-	'ACP_PMSEARCH_VERSION'			=> 'Version',
-	'ACP_PMSEARCH_TOTAL_MESSAGES'	=> 'Total messages',
-	'ACP_PMSEARCH_INDEX_BYTES'		=> 'Disk usage',
-	'ACP_PMSEARCH_RAM_BYTES'		=> 'RAM usage',
+	'ACP_PMSEARCH_VERSION'          => 'Version',
+	'ACP_PMSEARCH_TOTAL_MESSAGES'   => 'Total messages',
+	'ACP_PMSEARCH_INDEX_BYTES'      => 'Disk usage',
+	'ACP_PMSEARCH_RAM_BYTES'        => 'RAM usage',
 
 
 	// Maintenance commands
-	'ACP_PMSEARCH_INDEX_COMMANDS'	=> 'index maintenance',
-	'ACP_PMSEARCH_REINDEX'			=> 'Rebuild search index',
-	'ACP_PMSEARCH_ACTION_DROP'		=> 'Delete search index',
+	'ACP_PMSEARCH_INDEX_COMMANDS'   => 'index maintenance',
+	'ACP_PMSEARCH_REINDEX'          => 'Rebuild search index',
+	'ACP_PMSEARCH_ACTION_DROP'      => 'Delete search index',
 
 	// Maintenance responses
-	'ACP_PMSEARCH_INDEX_DONE'	=> 'Indexing complete',
-	'ACP_PMSEARCH_DROP_DONE'	=> 'Deletion complete',
-	'ACP_PMSEARCH_INDEX_STATS'	=> 'Time: %s seconds<br />Memory usage: %s MiB',
-	'ACP_PMSEARCH_ACTION_NONE'	=> 'Unknown action',
+	'ACP_PMSEARCH_INDEX_DONE'       => 'Indexing complete',
+	'ACP_PMSEARCH_DROP_DONE'        => 'Deletion complete',
+	'ACP_PMSEARCH_INDEX_STATS'      => 'Time: %s seconds<br />Memory usage: %s MiB',
+	'ACP_PMSEARCH_ACTION_NONE'      => 'Unknown action',
 
 	// Error messages
-	'ACP_PMSEARCH_CONNECTION_ERROR'	=> 'Unable to connect to search engine',
-	'ACP_PMSEARCH_PROGRAM_ERROR'	=> 'Error with search backend',
-	'ACP_PMSEARCH_MISSING_TABLE'	=> 'Private message search index missing and could not be created',
-	'ACP_PMSEARCH_UNKNOWN_VERSION'	=> 'Unknown Sphinx or Manticore version',
+	'ACP_PMSEARCH_CONNECTION_ERROR' => 'Unable to connect to search engine',
+	'ACP_PMSEARCH_PROGRAM_ERROR'    => 'Error with search backend',
+	'ACP_PMSEARCH_MISSING_TABLE'    => 'Private message search index missing and could not be created',
+	'ACP_PMSEARCH_UNKNOWN_VERSION'  => 'Unknown Sphinx or Manticore version',
 ]);

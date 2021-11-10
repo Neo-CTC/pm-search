@@ -4,7 +4,7 @@
  * PM Search. An extension for the phpBB Forum Software package.
  *
  * @copyright (c) 2020, NeoDev
- * @license GNU General Public License, version 2 (GPL-2.0)
+ * @license       GNU General Public License, version 2 (GPL-2.0)
  *
  */
 
@@ -34,11 +34,11 @@ class main_module
 
 		global $phpbb_container;
 		$acp_controller = $phpbb_container->get('crosstimecafe.pmsearch.controller.acp');
-		$language = $phpbb_container->get('language');
+		$language       = $phpbb_container->get('language');
 		$language->add_lang('acp/search');
 		$request = $phpbb_container->get('request');
-		$action = $request->variable('action', '');
-		$engine = $request->variable('engine', '');
+		$action  = $request->variable('action', '');
+		$engine  = $request->variable('engine', '');
 
 
 		/*
@@ -84,7 +84,7 @@ class main_module
 			{
 				// Display settings page
 				case 'settings':
-					$this->tpl_name = 'acp_pmsearch_body';
+					$this->tpl_name   = 'acp_pmsearch_body';
 					$this->page_title = $language->lang('ACP_PMSEARCH_TITLE') . ' - ' . $language->lang('ACP_PMSEARCH_MODE_SETTINGS');
 					$acp_controller->set_page_url($this->u_action);
 					$acp_controller->display_options();
@@ -93,7 +93,7 @@ class main_module
 				// Display status page by default
 				case 'status':
 				default:
-					$this->tpl_name = 'acp_pmsearch_status';
+					$this->tpl_name   = 'acp_pmsearch_status';
 					$this->page_title = $language->lang('ACP_PMSEARCH_TITLE') . ' - ' . $language->lang('ACP_PMSEARCH_MODE_STATUS');
 					$acp_controller->set_page_url($this->u_action);
 					$acp_controller->display_status();

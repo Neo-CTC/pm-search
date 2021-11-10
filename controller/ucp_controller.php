@@ -4,7 +4,7 @@
  * PM Search. An extension for the phpBB Forum Software package.
  *
  * @copyright (c) 2021, NeoDev
- * @license GNU General Public License, version 2 (GPL-2.0)
+ * @license       GNU General Public License, version 2 (GPL-2.0)
  *
  */
 
@@ -47,26 +47,26 @@ class ucp_controller
 	/**
 	 * Constructor.
 	 *
-	 * @param \phpbb\db\driver\driver_interface	$db			Database object
-	 * @param \phpbb\language\language			$language	Language object
-	 * @param \phpbb\request\request			$request	Request object
-	 * @param \phpbb\template\template			$template	Template object
-	 * @param \phpbb\user						$user		User object
+	 * @param \phpbb\db\driver\driver_interface $db       Database object
+	 * @param \phpbb\language\language          $language Language object
+	 * @param \phpbb\request\request            $request  Request object
+	 * @param \phpbb\template\template          $template Template object
+	 * @param \phpbb\user                       $user     User object
 	 */
 	public function __construct(driver_interface $db, language $language, request $request, template $template, user $user, pagination $page, config $conf)
 	{
-		$this->db			= $db;
-		$this->language		= $language;
-		$this->request		= $request;
-		$this->template		= $template;
-		$this->user			= $user;
-		$this->uid			= $user->id();
-		$this->pagination	= $page;
-		$this->config		= $conf;
+		$this->db         = $db;
+		$this->language   = $language;
+		$this->request    = $request;
+		$this->template   = $template;
+		$this->user       = $user;
+		$this->uid        = $user->id();
+		$this->pagination = $page;
+		$this->config     = $conf;
 
 		global $phpbb_root_path, $phpEx;
-		$this->root	= $phpbb_root_path;
-		$this->ext	= $phpEx;
+		$this->root = $phpbb_root_path;
+		$this->ext  = $phpEx;
 	}
 
 	public function display_messages()
@@ -99,14 +99,14 @@ class ucp_controller
 		 */
 
 
-		$keywords = $this->request->variable('keywords', '', true);
-		$from = $this->request->variable('from', '', true);
-		$sent = $this->request->variable('sent', '', true);
-		$folders = $this->request->variable('fid', [0]);
+		$keywords     = $this->request->variable('keywords', '', true);
+		$from         = $this->request->variable('from', '', true);
+		$sent         = $this->request->variable('sent', '', true);
+		$folders      = $this->request->variable('fid', [0]);
 		$search_field = $this->request->variable('sf', 'all');
-		$order = $this->request->variable('sk', 'message_time');
-		$direction = $this->request->variable('sd', 'desc');
-		$start = $this->request->variable('start', 0);
+		$order        = $this->request->variable('sk', 'message_time');
+		$direction    = $this->request->variable('sd', 'desc');
+		$start        = $this->request->variable('start', 0);
 
 
 		/*
@@ -142,7 +142,7 @@ class ucp_controller
 		}
 
 		// Odd setup to make folder searching work with the default folders
-		$folder_ids = '';
+		$folder_ids      = '';
 		$folder_id_array = [];
 		if ($folders)
 		{
@@ -236,19 +236,19 @@ class ucp_controller
 		 */
 
 
-		$rows = [];
+		$rows        = [];
 		$total_found = 0;
 		try
 		{
 			// Fetch matches
 			$result = $search->execute();
-			$rows = $result->fetchAllAssoc();
+			$rows   = $result->fetchAllAssoc();
 
 			// Todo also fetch any errors
 			// Fetch the 'total found' variable from metadata
 			$search->query("SHOW META LIKE 'total_found'");
-			$result = $search->execute();
-			$meta_data = $result->fetchAllNum();
+			$result      = $search->execute();
+			$meta_data   = $result->fetchAllNum();
 			$total_found = $meta_data[0][1];
 
 		}
@@ -289,33 +289,33 @@ class ucp_controller
 
 			// SQL for fetching messages from ids
 			$sql_array = [
-				'SELECT'	=> 'p.msg_id, p.author_id, u.username as author_name, u.user_colour as author_colour, p.message_time, p.message_subject, p.message_text, p.bbcode_uid, p.bbcode_bitfield, p.to_address, p.bcc_address, t.folder_id, f.folder_name',
-				'FROM'		=> [
+				'SELECT'    => 'p.msg_id, p.author_id, u.username as author_name, u.user_colour as author_colour, p.message_time, p.message_subject, p.message_text, p.bbcode_uid, p.bbcode_bitfield, p.to_address, p.bcc_address, t.folder_id, f.folder_name',
+				'FROM'      => [
 					PRIVMSGS_TABLE => 'p',
 				],
 				// Get extra data
 				'LEFT_JOIN' => [
 					[
 						// Get username and username colour for the author
-						'FROM'	=> [USERS_TABLE => 'u'],
-						'ON'	=> 'p.author_id = u.user_id',
+						'FROM' => [USERS_TABLE => 'u'],
+						'ON'   => 'p.author_id = u.user_id',
 					],
 					[
 						// Get the folder id of the message for current user
-						'FROM'	=> [PRIVMSGS_TO_TABLE => 't'],
-						'ON'	=> 'p.msg_id = t.msg_id and t.user_id = ' . $this->uid,
+						'FROM' => [PRIVMSGS_TO_TABLE => 't'],
+						'ON'   => 'p.msg_id = t.msg_id and t.user_id = ' . $this->uid,
 					],
 					[
 						// Get the folder name from id
-						'FROM'	=> [PRIVMSGS_FOLDER_TABLE => 'f'],
-						'ON'	=> 't.folder_id = f.folder_id',
+						'FROM' => [PRIVMSGS_FOLDER_TABLE => 'f'],
+						'ON'   => 't.folder_id = f.folder_id',
 					],
 				],
-				'WHERE'		=> $sql_where,
-				'ORDER_BY'	=> $order . ' ' . $direction,
+				'WHERE'     => $sql_where,
+				'ORDER_BY'  => $order . ' ' . $direction,
 			];
-			$sql = $this->db->sql_build_query('SELECT', $sql_array);
-			$result = $this->db->sql_query($sql);
+			$sql       = $this->db->sql_build_query('SELECT', $sql_array);
+			$result    = $this->db->sql_query($sql);
 
 
 			/*
@@ -340,7 +340,7 @@ class ucp_controller
 					// Not entirely sure what this does, it was copied from search.php
 					$row['message_text'] = str_replace('[*:' . $row['bbcode_uid'] . ']', '&sdot;&nbsp;', $row['message_text']);
 				}
-				$parse_flags = ($row['bbcode_bitfield'] ? OPTION_FLAG_BBCODE : 0) | OPTION_FLAG_SMILIES;
+				$parse_flags         = ($row['bbcode_bitfield'] ? OPTION_FLAG_BBCODE : 0) | OPTION_FLAG_SMILIES;
 				$row['message_text'] = generate_text_for_display($row['message_text'], $row['bbcode_uid'], $row['bbcode_bitfield'], $parse_flags, true);
 
 
@@ -353,8 +353,8 @@ class ucp_controller
 
 				// Todo: We're not ready to handle bcc yet
 				$row['bcc_address'] = '';
-				$recipient = get_recipient_strings([$row['msg_id'] => $row]);
-				$recipient = implode(' ', $recipient[$row['msg_id']]);
+				$recipient          = get_recipient_strings([$row['msg_id'] => $row]);
+				$recipient          = implode(' ', $recipient[$row['msg_id']]);
 
 
 				/*
@@ -380,15 +380,15 @@ class ucp_controller
 						$folder_name = $row['folder_name'];
 				}
 				$this->template->assign_block_vars('searchresults', [
-					'DATE'			=> (!empty($row['message_time'])) ? $this->user->format_date($row['message_time']) : '',
-					'AUTHOR'		=> get_username_string('full', $row['author_id'], $row['author_name'], $row['author_colour']),
-					'RECIPIENTS'	=> $recipient,
-					'FOLDER'		=> $folder_name,
+					'DATE'       => (!empty($row['message_time'])) ? $this->user->format_date($row['message_time']) : '',
+					'AUTHOR'     => get_username_string('full', $row['author_id'], $row['author_name'], $row['author_colour']),
+					'RECIPIENTS' => $recipient,
+					'FOLDER'     => $folder_name,
 
-					'SUBJECT'	=> $row['message_subject'],
-					'MESSAGE'	=> $row['message_text'],
+					'SUBJECT' => $row['message_subject'],
+					'MESSAGE' => $row['message_text'],
 
-					'VIEW_MESSAGE'	=> append_sid("{$this->root}ucp.$this->ext", 'i=pm&mode=view&p=' . $row['msg_id']),
+					'VIEW_MESSAGE' => append_sid("{$this->root}ucp.$this->ext", 'i=pm&mode=view&p=' . $row['msg_id']),
 				]);
 			}
 			$this->db->sql_freeresult($result);
@@ -402,8 +402,8 @@ class ucp_controller
 		 */
 
 
-		$start = $this->pagination->validate_start($start, $this->config['posts_per_page'], $total_found);
-		$url_parms  = $keywords ? '&keywords=' . urlencode($keywords) : '';
+		$start     = $this->pagination->validate_start($start, $this->config['posts_per_page'], $total_found);
+		$url_parms = $keywords ? '&keywords=' . urlencode($keywords) : '';
 		$url_parms .= $from ? '&from=' . urlencode($from) : '';
 		$url_parms .= $sent ? '&to=' . urlencode($sent) : '';
 		foreach ($folders as $f)
@@ -450,7 +450,7 @@ class ucp_controller
 
 			// Custom folders
 			$sql_where = $this->db->sql_in_set('folder_id', $folders);
-			$result = $this->db->sql_query('SELECT folder_name FROM ' . PRIVMSGS_FOLDER_TABLE . ' WHERE user_id = ' . $this->uid . ' AND ' . $sql_where);
+			$result    = $this->db->sql_query('SELECT folder_name FROM ' . PRIVMSGS_FOLDER_TABLE . ' WHERE user_id = ' . $this->uid . ' AND ' . $sql_where);
 			foreach ($result as $row)
 			{
 				$folder_list .= $row['folder_name'];
@@ -470,13 +470,13 @@ class ucp_controller
 		get_folder($this->uid);
 
 		$this->template->assign_vars([
-			'SEARCH_LINK'		=> $this->u_action,
-			'SEARCH_MATCHES'	=> $this->language->lang('FOUND_SEARCH_MATCHES', $total_found),
+			'SEARCH_LINK'    => $this->u_action,
+			'SEARCH_MATCHES' => $this->language->lang('FOUND_SEARCH_MATCHES', $total_found),
 
-			'KEYWORDS'	=> $keywords,
-			'FROM'		=> $from,
-			'SENT'		=> $sent,
-			'FOLDER'	=> $folder_list,
+			'KEYWORDS' => $keywords,
+			'FROM'     => $from,
+			'SENT'     => $sent,
+			'FOLDER'   => $folder_list,
 		]);
 
 	}
@@ -539,7 +539,7 @@ class ucp_controller
 		$this->template->assign_vars([
 			//'S_ERROR'		=> $s_errors,
 			//'ERROR_MSG'	=> $s_errors ? implode('<br />', $errors) : '',
-			'U_UCP_ACTION'	=> $this->u_action,
+			'U_UCP_ACTION' => $this->u_action,
 		]);
 	}
 
@@ -568,7 +568,7 @@ class ucp_controller
 		unset($name);
 
 		// Fetch user ids from usernames
-		$where = $this->db->sql_in_set('username_clean', $names);
+		$where  = $this->db->sql_in_set('username_clean', $names);
 		$result = $this->db->sql_query('SELECT user_id FROM ' . USERS_TABLE . ' WHERE ' . $where);
 		while ($row = $this->db->sql_fetchrow($result))
 		{

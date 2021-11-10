@@ -4,7 +4,7 @@
  * PM Search. An extension for the phpBB Forum Software package.
  *
  * @copyright (c) 2021, NeoDev
- * @license GNU General Public License, version 2 (GPL-2.0)
+ * @license       GNU General Public License, version 2 (GPL-2.0)
  *
  */
 
@@ -14,11 +14,12 @@ class install_ucp_module extends \phpbb\db\migration\migration
 {
 	public function effectively_installed()
 	{
-		$sql = 'SELECT module_id
+		$sql  = 'SELECT module_id
 			FROM ' . $this->table_prefix . "modules
 			WHERE module_class = 'ucp'
 				AND module_langname = 'UCP_PMSEARCH_TITLE'";
-		$result = $this->db->sql_query($sql);
+
+		$result    = $this->db->sql_query($sql);
 		$module_id = $this->db->sql_fetchfield('module_id');
 		$this->db->sql_freeresult($result);
 
@@ -37,8 +38,8 @@ class install_ucp_module extends \phpbb\db\migration\migration
 				'ucp',
 				'UCP_PM',
 				[
-					'module_basename'	=> '\crosstimecafe\pmsearch\ucp\main_module',
-					'modes'				=> ['search'],
+					'module_basename' => '\crosstimecafe\pmsearch\ucp\main_module',
+					'modes'           => ['search'],
 				],
 			]],
 		];

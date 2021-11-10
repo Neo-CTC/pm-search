@@ -4,7 +4,7 @@
  * PM Search. An extension for the phpBB Forum Software package.
  *
  * @copyright (c) 2021, NeoDev
- * @license GNU General Public License, version 2 (GPL-2.0)
+ * @license       GNU General Public License, version 2 (GPL-2.0)
  *
  */
 
@@ -50,8 +50,8 @@ class main_module
 		{
 			// Collect input variables
 			$keywords = $request->variable('keywords', '', true);
-			$from = $request->variable('from', '', true);
-			$sent = $request->variable('sent', '', true);
+			$from     = $request->variable('from', '', true);
+			$sent     = $request->variable('sent', '', true);
 
 			// Select function
 			if ($keywords || $from || $sent)

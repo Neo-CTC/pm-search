@@ -4,7 +4,7 @@
  * PM Search. An extension for the phpBB Forum Software package.
  *
  * @copyright (c) 2020, NeoDev
- * @license GNU General Public License, version 2 (GPL-2.0)
+ * @license       GNU General Public License, version 2 (GPL-2.0)
  *
  */
 
@@ -20,8 +20,8 @@ use mysqli;
 //use mysqli;
 
 const SphinxQL_ERR_CONNECTION = 1;
-const SphinxQL_ERR_Data = 2;
-const SphinxQL_ERR_PROGRAM = 3;
+const SphinxQL_ERR_Data       = 2;
+const SphinxQL_ERR_PROGRAM    = 3;
 
 class acp_controller
 {
@@ -32,34 +32,34 @@ class acp_controller
 	protected $template;
 	protected $user;
 	protected $db;
-	private $indexer;
-	private $u_action;
+	private   $indexer;
+	private   $u_action;
 
 	private $sphinxql_error_msg;
 	private $sphinxql_error_num;
 
 	public function __construct(\phpbb\config\config $config, \phpbb\language\language $language, \phpbb\log\log $log, \phpbb\request\request $request, \phpbb\template\template $template, \phpbb\user $user, \phpbb\db\driver\driver_interface $db)
 	{
-		$this->config	= $config;
-		$this->language	= $language;
-		$this->log		= $log;
-		$this->request	= $request;
-		$this->template	= $template;
-		$this->user		= $user;
-		$this->db		= $db;
+		$this->config   = $config;
+		$this->language = $language;
+		$this->log      = $log;
+		$this->request  = $request;
+		$this->template = $template;
+		$this->user     = $user;
+		$this->db       = $db;
 
 		//$this->functions = $phpbb_container->get('anavaro.pmsearch.search.helper')
 
 		$conn = new Connection();
 		$conn->setParams([
-			'host' => $this->config['pmsearch_host'],
-			'port' => $this->config['pmsearch_port'],
+			'host'    => $this->config['pmsearch_host'],
+			'port'    => $this->config['pmsearch_port'],
 			'options' => [
 				// Todo get error message for timeouts
 				MYSQLI_OPT_CONNECT_TIMEOUT => 2,
 			],
 		]);
-		$this->indexer = new SphinxQL($conn);
+		$this->indexer            = new SphinxQL($conn);
 		$this->sphinxql_error_msg = '';
 		$this->sphinxql_error_num = 0;
 	}
@@ -167,12 +167,12 @@ class acp_controller
 
 
 		$this->template->assign_vars([
-			'U_ACTION'	=> $this->u_action,
+			'U_ACTION' => $this->u_action,
 
-			'enabled'		=> $this->config['pmsearch_enable'],
-			'search_type'	=> $this->config['pmsearch_engine'],
-			'host'			=> $this->config['pmsearch_host'],
-			'port'			=> $this->config['pmsearch_port'],
+			'enabled'     => $this->config['pmsearch_enable'],
+			'search_type' => $this->config['pmsearch_engine'],
+			'host'        => $this->config['pmsearch_host'],
+			'port'        => $this->config['pmsearch_port'],
 		]);
 	}
 
@@ -185,10 +185,10 @@ class acp_controller
 		 */
 
 
-		$type = $this->request->variable('search_type', 'sphinx');
+		$type    = $this->request->variable('search_type', 'sphinx');
 		$enabled = $this->request->variable('enable_search', 0);
-		$host = $this->request->variable('hostname', '127.0.0.1');
-		$port = $this->request->variable('port', 9036);
+		$host    = $this->request->variable('hostname', '127.0.0.1');
+		$port    = $this->request->variable('port', 9036);
 
 
 		/*
@@ -238,7 +238,7 @@ class acp_controller
 
 		$action = $this->request->variable('action', '');
 		$engine = $this->request->variable('engine', '');
-		$time = microtime(true);
+		$time   = microtime(true);
 
 		if ($engine == 'sphinx')
 		{
@@ -266,7 +266,7 @@ class acp_controller
 
 			// Does our index exist? Again, another big difference between Sphinx and Manticore
 			$index_exists = (bool) $this->get_sphinx_indexes('pm');
-			$message = '';
+			$message      = '';
 
 
 			/*
@@ -371,7 +371,7 @@ class acp_controller
 				// Todo find a better logic for folder searching, maybe?
 				// Todo try sql transactions
 				$offset = 0;
-				$query = "SELECT
+				$query  = "SELECT
 						p.msg_id as id,
 						p.author_id author_id,
 						GROUP_CONCAT(t.user_id SEPARATOR ' ') user_id,
@@ -502,7 +502,7 @@ class acp_controller
 		{
 			// More work is needed to find the version for Sphinx 2+
 			$my = new mysqli($this->config['pmsearch_host'], '', '', '', $this->config['pmsearch_port']);
-			$v = $my->get_server_info();
+			$v  = $my->get_server_info();
 			return (preg_match('/^([\d.]+)/', $v, $m)) ? explode('.', $m[1]) : false;
 		}
 	}
