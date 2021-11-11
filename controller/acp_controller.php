@@ -17,10 +17,8 @@ use Foolz\SphinxQL\Exception\SphinxQLException;
 use Foolz\SphinxQL\SphinxQL;
 use mysqli;
 
-//use mysqli;
-
 const SphinxQL_ERR_CONNECTION = 1;
-const SphinxQL_ERR_Data       = 2;
+const SphinxQL_ERR_DATA       = 2;
 const SphinxQL_ERR_PROGRAM    = 3;
 
 class acp_controller
@@ -48,8 +46,6 @@ class acp_controller
 		$this->user     = $user;
 		$this->db       = $db;
 
-		//$this->functions = $phpbb_container->get('anavaro.pmsearch.search.helper')
-
 		$conn = new Connection();
 		$conn->setParams([
 			'host'    => $this->config['pmsearch_host'],
@@ -66,46 +62,120 @@ class acp_controller
 
 	public function display_status()
 	{
+		// Todo adjust table name to match phpbb
+		// Todo show create button if index is empty
+		// Todo check for incompatible index versions
 
 
 		/*
 		 *
-		 * Get Sphinx status
+		 * Get version
 		 *
 		 */
 
 
-		// Todo adjust table name to match phpbb
-		// Todo show create button if index is empty
-		$index_exists = (bool) $this->get_sphinx_indexes('pm');
+		// Start by trying to get the version
+		$version = $this->get_sphinx_version();
 
-		if ($index_exists)
+		// If we have a version we are connected, time for more stats
+		if ($version)
 		{
-			$version = $this->get_sphinx_version();
-			$version = ($version[0] < 4) ? 'Sphinx ' . implode('.', $version) : 'Manticore ' . implode('.', $version);
-			$this->template->assign_var('SPHINX_VERSION', $version);
+			// Sphinx: 0; Manticore: 1
+			$this->template->assign_var('SPHINX_VERSION', ($version[3] == 0 ? 'Sphinx ' : 'Manticore ') . implode('.', array_slice($version, 0, 3)));
 
-			$this->indexer->query('SHOW INDEX pm STATUS');
-			$result = $this->search_execute();
-			if ($result)
+
+			/*
+			 *
+			 * Get index status
+			 *
+			 */
+
+
+			$index_exists = (bool) $this->get_sphinx_indexes('pm');
+			if ($index_exists)
 			{
-				$this->template->assign_var('SPHINX_STATUS', $this->language->lang('ACP_PMSEARCH_READY'));
-				while ($row = $result->fetchAssoc())
+
+
+				/*
+				 *
+				 * Normal index status
+				 *
+				 */
+
+
+				$this->indexer->query('SHOW INDEX pm STATUS');
+				$result = $this->search_execute();
+				if ($result)
 				{
-					switch ($row['Variable_name'])
+					$total = 0;
+					while ($row = $result->fetchAssoc())
 					{
-						// Todo get more variables
-						case 'indexed_documents':
-							$this->template->assign_var('TOTAL_MESSAGES', $row['Value']);
+						switch ($row['Variable_name'])
+						{
+							// Todo get more variables
+							case 'indexed_documents':
+								$this->template->assign_var('TOTAL_MESSAGES', $row['Value']);
+								$total = (int) $row['Value'];
+								break;
+							case 'disk_bytes':
+								$this->template->assign_var('INDEX_BYTES', round($row['Value'] / 1048576, 1) . ' MiB');
+								break;
+							case 'ram_bytes':
+								$this->template->assign_var('RAM_BYTES', round($row['Value'] / 1048576, 1) . ' MiB');
+								break;
+						}
+					}
+
+					$this->template->assign_var('SPHINX_STATUS', $total ? $this->language->lang('ACP_PMSEARCH_READY') : $this->language->lang('ACP_PMSEARCH_INDEX_EMPTY'));
+				}
+				else
+				{
+					switch ($this->sphinxql_error_num)
+					{
+						case SphinxQL_ERR_CONNECTION:
+							$this->template->assign_var('SPHINX_STATUS', $this->language->lang('ACP_PMSEARCH_CONNECTION_ERROR'));
 							break;
-						case 'disk_bytes':
-							$this->template->assign_var('INDEX_BYTES', round($row['Value'] / 1048576, 1) . ' MiB');
+						case SphinxQL_ERR_DATA:
+							$this->template->assign_var('SPHINX_STATUS', $this->language->lang('ACP_PMSEARCH_NO_INDEX'));
 							break;
-						case 'ram_bytes':
-							$this->template->assign_var('RAM_BYTES', round($row['Value'] / 1048576, 1) . ' MiB');
+						case SphinxQL_ERR_PROGRAM:
+							$this->template->assign_var('SPHINX_STATUS', $this->sphinxql_error_msg);
 							break;
 					}
 				}
+			}
+			elseif ($version[3] == 1 || $version[0] >= 3)
+			{
+
+
+				/*
+				 *
+				 * Manticore or Sphinx 3.x with missing index
+				 *
+				 */
+
+
+				// A missing index is no big deal for Manticore as it can create a new index by itself
+				// The same is true for the newest Sphinx version.
+				// Therefore, zeros for everything
+				$this->template->assign_var('SPHINX_STATUS', $this->language->lang('ACP_PMSEARCH_INDEX_EMPTY'));
+				$this->template->assign_var('TOTAL_MESSAGES', 0);
+				$this->template->assign_var('INDEX_BYTES', '0 MiB');
+				$this->template->assign_var('RAM_BYTES', '0 MiB');
+			}
+			elseif ($version[0] == 2 && $version[3] == 0)
+			{
+
+
+				/*
+				 *
+				 * Sphinx 2.x with missing index
+				 *
+				 */
+
+
+				// Sphinx 2.x can not create the index by itself, complain to user
+				$this->template->assign_var('SPHINX_STATUS', $this->language->lang('ACP_PMSEARCH_NO_INDEX'));
 			}
 			else
 			{
@@ -114,7 +184,7 @@ class acp_controller
 					case SphinxQL_ERR_CONNECTION:
 						$this->template->assign_var('SPHINX_STATUS', $this->language->lang('ACP_PMSEARCH_CONNECTION_ERROR'));
 						break;
-					case SphinxQL_ERR_Data:
+					case SphinxQL_ERR_DATA:
 						$this->template->assign_var('SPHINX_STATUS', $this->language->lang('ACP_PMSEARCH_NO_INDEX'));
 						break;
 					case SphinxQL_ERR_PROGRAM:
@@ -125,18 +195,7 @@ class acp_controller
 		}
 		else
 		{
-			switch ($this->sphinxql_error_num)
-			{
-				case SphinxQL_ERR_CONNECTION:
-					$this->template->assign_var('SPHINX_STATUS', $this->language->lang('ACP_PMSEARCH_CONNECTION_ERROR'));
-					break;
-				case SphinxQL_ERR_Data:
-					$this->template->assign_var('SPHINX_STATUS', $this->language->lang('ACP_PMSEARCH_NO_INDEX'));
-					break;
-				case SphinxQL_ERR_PROGRAM:
-					$this->template->assign_var('SPHINX_STATUS', $this->sphinxql_error_msg);
-					break;
-			}
+			$this->template->assign_var('SPHINX_STATUS', $this->language->lang('ACP_PMSEARCH_CONNECTION_ERROR'));
 		}
 
 
@@ -500,7 +559,7 @@ class acp_controller
 		}
 		catch (DatabaseException $e)
 		{
-			$this->sphinxql_error_num = SphinxQL_ERR_Data;
+			$this->sphinxql_error_num = SphinxQL_ERR_DATA;
 			$this->sphinxql_error_msg = $e->getMessage();
 			return false;
 		}
@@ -515,26 +574,55 @@ class acp_controller
 
 	private function get_sphinx_version()
 	{
+		// Try to fetch the version variable
 		$this->indexer->query("SHOW STATUS LIKE 'version'");
 		$result = $this->search_execute();
+
+		// We couldn't connect or some other error
 		if ($result === false)
 		{
 			return false;
 		}
 
+		// Only Manticore returns a version from status
 		if ($result->count())
 		{
-			// Only Manticore 4+ returns a version
 			$row = $result->fetchAssoc();
-			return (preg_match('/^([\d.]+)/', $row['Value'], $m)) ? explode('.', $m) : false;
+			if (preg_match('/^([\d.]+)/', $row['Value'], $m))
+			{
+				$v   = explode('.', $m[1]);
+				$v[] = 1;
+				return $v;
+			}
 		}
-		else
+
+		// No version? Must be Sphinx
+		$this->indexer->query("SHOW VARIABLES LIKE 'version'");
+		$result = $this->search_execute();
+
+		if ($result->count())
 		{
-			// More work is needed to find the version for Sphinx 2+
-			$my = new mysqli($this->config['pmsearch_host'], '', '', '', $this->config['pmsearch_port']);
-			$v  = $my->get_server_info();
-			return (preg_match('/^([\d.]+)/', $v, $m)) ? explode('.', $m[1]) : false;
+			$row = $result->fetchAssoc();
+			if (preg_match('/^([\d.]+)/', $row['Value'], $m))
+			{
+				$v   = explode('.', $m[1]);
+				$v[] = 0;
+				return $v;
+			}
 		}
+
+		// Still no version? Must be an ancient version of Sphinx
+		$my = new mysqli($this->config['pmsearch_host'], '', '', '', $this->config['pmsearch_port']);
+		$v  = $my->get_server_info();
+		if(preg_match('/^([\d.]+)/', $v, $m))
+		{
+			$v   = explode('.', $m[1]);
+			$v[] = 0;
+			return $v;
+		}
+
+		// Unknown version??
+		return false;
 	}
 
 	private function get_sphinx_indexes($index = false)

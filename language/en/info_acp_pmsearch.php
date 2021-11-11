@@ -42,8 +42,9 @@ $lang = array_merge($lang, [
 
 	// Index status
 	'ACP_PMSEARCH_STATUS'           => 'Status',
-	'ACP_PMSEARCH_READY'            => 'Ready',
-	'ACP_PMSEARCH_NO_INDEX'         => 'Index missing',
+	'ACP_PMSEARCH_READY'            => 'Ready for use',
+	'ACP_PMSEARCH_NO_INDEX'         => 'Index missing. Please create index inside Sphinx configuration file',
+	'ACP_PMSEARCH_INDEX_EMPTY'		=> 'Index empty',
 
 	// Sphinx index status
 	'ACP_PMSEARCH_VERSION'          => 'Version',
