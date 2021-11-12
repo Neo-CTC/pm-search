@@ -30,7 +30,7 @@ class acp_controller
 	protected $template;
 	protected $user;
 	protected $db;
-	private   $indexer;
+	private   $sphinx_QL;
 	private   $u_action;
 
 	private $sphinxql_error_msg;
@@ -55,7 +55,7 @@ class acp_controller
 				MYSQLI_OPT_CONNECT_TIMEOUT => 2,
 			],
 		]);
-		$this->indexer            = new SphinxQL($conn);
+		$this->sphinx_QL          = new SphinxQL($conn);
 		$this->sphinxql_error_msg = '';
 		$this->sphinxql_error_num = 0;
 	}
@@ -103,7 +103,7 @@ class acp_controller
 				 */
 
 
-				$this->indexer->query('SHOW INDEX pm STATUS');
+				$this->sphinx_QL->query('SHOW INDEX pm STATUS');
 				$result = $this->search_execute();
 				if ($result)
 				{
@@ -327,7 +327,23 @@ class acp_controller
 
 		$action = $this->request->variable('action', '');
 		$engine = $this->request->variable('engine', '');
+
+		if (!in_array($action,['create','delete']) || !in_array($engine,['sphinx','mysql']))
+		{
+			// Unknown command, we stop here
+			return;
+		}
+
+		// Collect the starting time, indexing takes a long time
 		$time   = microtime(true);
+
+
+		/*
+		 *
+		 * Sphinx index
+		 *
+		 */
+
 
 		if ($engine == 'sphinx')
 		{
@@ -353,114 +369,80 @@ class acp_controller
 				trigger_error($this->language->lang('ACP_PMSEARCH_PROGRAM_ERROR'), E_USER_ERROR);
 			}
 
-			// Does our index exist? Again, another big difference between Sphinx and Manticore
+			// Does our index exist? Another big difference between Sphinx and Manticore
 			$index_exists = (bool) $this->get_sphinx_indexes('pm');
-			$message      = '';
+			if ($version[0] == 2 && $index_exists == false)
+			{
+				// Sphinx 2.x can't do anything unless the index exists
+				trigger_error($this->language->lang('ACP_PMSEARCH_NO_INDEX'),E_USER_WARNING);
+			}
 
 
 			/*
 			 *
-			 * Prep for indexing
+			 * Delete index
 			 *
 			 */
 
 
-			// Creating an index always starts with deleting any currently existing data
-			if ($action == 'create' || $action == 'delete')
+			// Creating/reindexing an index always starts with deleting any currently existing data
+			if ($version[0] == 2)
 			{
-
-
-				/*
-				 *
-				 * Delete from Sphinx
-				 *
-				 */
-
-
-				if ($version[0] < 4 && $version[0] >= 2)
-				{
-					if ($index_exists)
-					{
-						// Sphinx can't delete the index, but it can delete the entries
-						$this->indexer->query('DELETE FROM pm WHERE id != 0');
-						$this->search_execute();
-					}
-				}
-
-
-				/*
-				 *
-				 * Delete for Manticore
-				 *
-				 */
-
-
-				elseif ($version[0] = 4)
-				{
-					// Clear the index
-					if ($index_exists)
-					{
-						$this->indexer->query('DROP TABLE pm');
-						$this->search_execute();
-					}
-				}
-				else
-				{
-					// Unknown Sphinx/Manticore version
-					trigger_error($this->language->lang('ACP_PMSEARCH_UNKNOWN_VERSION'), E_USER_WARNING);
-				}
-
-				// Set the message to send
-				$message = $this->language->lang('ACP_PMSEARCH_DROP_DONE');
+				// Sphinx can't delete the index, but it can delete the entries
+				$this->sphinx_QL->query('DELETE FROM pm WHERE id != 0');
+				$this->search_execute();
+			}
+			// Can't delete an index if it doesn't exist
+			elseif($index_exists)
+			{
+				// Dropping the index from orbit
+				$this->sphinx_QL->query('DROP TABLE pm');
+				$this->search_execute();
 			}
 
-			if ($action == 'create')
+			// Stop here if we are not also creating the index
+			if ($action == 'delete')
 			{
-				if ($version[0] < 4 && $version[0] >= 2)
-				{
+				$message = $this->language->lang('ACP_PMSEARCH_DROP_DONE');
+				$message .= '<br />' . $this->language->lang('ACP_PMSEARCH_INDEX_STATS', round(microtime(true) - $time, 1), round(memory_get_peak_usage() / 1048576, 2));
+				trigger_error($message);
+			}
 
 
-					/*
-					 *
-					 * Create index for Sphinx
-					 *
-					 */
+			/*
+			 *
+			 * Create index
+			 *
+			 */
 
 
-					if (!$index_exists)
-					{
-						// Sphinx can't create a new index by itself
-						trigger_error($this->language->lang('ACP_PMSEARCH_MISSING_TABLE'), E_USER_WARNING);
-					}
-				}
-				elseif ($version[0] = 4)
-				{
+			if ($version[3] == 0 && $version[0] > 2)
+			{
+				 // Create index for Sphinx 3.x
+				$this->sphinx_QL->query('CREATE TABLE pm(author_id integer,user_id multi,message_time bigint,message_subject field ,message_text field,folder_id field)');
+			}
+			elseif ($version[3] == 1)
+			{
+				 // Create index for Manticore
+				$this->sphinx_QL->query('CREATE TABLE pm(author_id integer,user_id multi,message_time timestamp,message_subject text indexed,message_text text indexed,folder_id text indexed)');
+			}
+			$this->search_execute();
 
 
-					/*
-					 *
-					 * Create index for Manticore
-					 *
-					 */
+			/*
+			 *
+			 * Begin indexing
+			 *
+			 */
 
 
-					$this->indexer->query('CREATE TABLE pm(author_id integer,user_id multi,message_time timestamp,message_subject text ,message_text text ,folder_id text indexed)');
-					$this->search_execute();
-				}
+			// Todo replace the group concat with to_uid and to_gid from the private message table
+			// Todo find a better logic for folder searching, maybe?
+			// Todo try sql transactions
 
-
-				/*
-				 *
-				 * Begin indexing
-				 *
-				 */
-
-
-				// Todo replace the group concat with to_uid and to_gid from the private message table
-				// Todo find a better logic for folder searching, maybe?
-				// Todo try sql transactions
-				$offset = 0;
-				$query  = "SELECT
+			// Todo document how the query works
+			// Returned columns must match the column names of the index
+			$query  = "SELECT
 						p.msg_id as id,
 						p.author_id author_id,
 						GROUP_CONCAT(t.user_id SEPARATOR ' ') user_id,
@@ -473,56 +455,64 @@ class acp_controller
 						WHERE t.pm_deleted = 0
 						GROUP BY p.msg_id
 						ORDER BY p.msg_id ASC';
-				$result = $this->db->sql_query_limit($query, 500);
-				while ($rows = $this->db->sql_fetchrowset($result))
+
+			// It is far quicker to fetch 500 rows and index all of them in one query than it is to handle them one at a time
+			$offset = 0;
+			$limit = 500;
+			$result = $this->db->sql_query_limit($query, $limit);
+
+			// Todo what if indexing takes too long and the script exceeds execution time?
+
+			// Shove all returned rows into an array for processing
+			// Rows must be an associative array
+			while ($rows = $this->db->sql_fetchrowset($result))
+			{
+				// Set query to insert
+				$this->sphinx_QL->insert()->into('pm');
+
+				// Minor row processing before inserting into query
+				foreach ($rows as $row)
 				{
-					$this->indexer->insert()->into('pm')
-					;
-					foreach ($rows as $row)
-					{
-						// MySQL returns user_id as a string of ids; explode user_id into an array of integers
-						$row['user_id'] = array_map('intval', explode(' ', $row['user_id']));
-						$this->indexer->set($row);
-					}
-					if ($this->search_execute() === false)
-					{
-						// We got ourselves an error, most likely we ran out of RAM or disk space, or maybe
-						// connection was lost.
-						switch ($this->sphinxql_error_num)
-						{
-							case SphinxQL_ERR_CONNECTION:
-								trigger_error($this->language->lang('ACP_PMSEARCH_CONNECTION_ERROR'), E_USER_WARNING);
-								break;
-							case SphinxQL_ERR_PROGRAM:
-							default:
-								// Todo send to log
-								trigger_error($this->language->lang('ACP_PMSEARCH_PROGRAM_ERROR') . '<br />' . $this->sphinxql_error_msg, E_USER_WARNING);
-								break;
-						}
-					}
-					$offset += 500;
-					$result = $this->db->sql_query_limit($query, 500, $offset);
+					// MySQL returns user_id as a string of ids; explode user_id into an array of integers
+					$row['user_id'] = array_map('intval', explode(' ', $row['user_id']));
+
+					// Add row to insert query
+					// Row must be an associative array with column names as key
+					$this->sphinx_QL->set($row);
 				}
-
-				// Not sure if this is needed, but it can't hurt
-				$this->indexer->query('OPTIMIZE INDEX pm');
-				$this->search_execute();
-
-				// Set the message to send
-				$message = $this->language->lang('ACP_PMSEARCH_INDEX_DONE');
+				if ($this->search_execute() === false)
+				{
+					// We got ourselves an error, most likely we ran out of RAM or disk space, or maybe
+					// connection was lost.
+					switch ($this->sphinxql_error_num)
+					{
+						case SphinxQL_ERR_CONNECTION:
+							trigger_error($this->language->lang('ACP_PMSEARCH_CONNECTION_ERROR'), E_USER_WARNING);
+							break;
+						case SphinxQL_ERR_PROGRAM:
+						default:
+							// Todo send to log
+							trigger_error($this->language->lang('ACP_PMSEARCH_PROGRAM_ERROR') . '<br />' . $this->sphinxql_error_msg, E_USER_WARNING);
+							break;
+					}
+				}
+				$offset += $limit;
+				$result = $this->db->sql_query_limit($query, $limit, $offset);
 			}
 
-
-			/*
-			 *
-			 * Finial steps
-			 *
-			 */
-
-
+			// Set the message to send
+			$message = $this->language->lang('ACP_PMSEARCH_INDEX_DONE');
 			$message .= '<br />' . $this->language->lang('ACP_PMSEARCH_INDEX_STATS', round(microtime(true) - $time, 1), round(memory_get_peak_usage() / 1048576, 2));
 			trigger_error($message);
 		}
+
+
+		/*
+		 *
+		 * MySQL index
+		 */
+
+
 		elseif ($engine == 'mysql')
 		{
 			if ($action == 'delete')
@@ -548,7 +538,7 @@ class acp_controller
 
 		try
 		{
-			$result = $this->indexer->execute();
+			$result = $this->sphinx_QL->execute();
 		}
 		catch (ConnectionException $e)
 		{
@@ -575,7 +565,7 @@ class acp_controller
 	private function get_sphinx_version()
 	{
 		// Try to fetch the version variable
-		$this->indexer->query("SHOW STATUS LIKE 'version'");
+		$this->sphinx_QL->query("SHOW STATUS LIKE 'version'");
 		$result = $this->search_execute();
 
 		// We couldn't connect or some other error
@@ -597,7 +587,7 @@ class acp_controller
 		}
 
 		// No version? Must be Sphinx
-		$this->indexer->query("SHOW VARIABLES LIKE 'version'");
+		$this->sphinx_QL->query("SHOW VARIABLES LIKE 'version'");
 		$result = $this->search_execute();
 
 		if ($result->count())
@@ -627,7 +617,7 @@ class acp_controller
 
 	private function get_sphinx_indexes($index = false)
 	{
-		$index ? $this->indexer->query("SHOW TABLES LIKE '$index'") : $this->indexer->query('SHOW TABLES');
+		$index ? $this->sphinx_QL->query("SHOW TABLES LIKE '$index'") : $this->sphinx_QL->query('SHOW TABLES');
 		$result = $this->search_execute();
 		if ($result)
 		{
