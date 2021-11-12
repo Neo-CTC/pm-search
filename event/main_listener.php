@@ -40,14 +40,21 @@ class main_listener implements EventSubscriberInterface
 	private $db;
 	private $user;
 	private $indexer;
-	private $sql_fetch;
+	private $config;
 
-	public function __construct(\phpbb\db\driver\driver_interface $db, \phpbb\user $user)
+	private $sql_fetch;
+	private $sphinx_id;
+
+	public function __construct(\phpbb\db\driver\driver_interface $db, \phpbb\user $user, \phpbb\config\config $config)
 	{
 		$this->db      = $db;
 		$this->user    = $user;
+		$this->config  = $config;
+
 		$conn          = new Connection();
 		$this->indexer = new SphinxQL($conn);
+
+		$this->sphinx_id = 'index_phpbb_' . $this->config['fulltext_sphinx_id'] . '_private_messages';
 
 		// Mysql only. Might work with others but idk.
 		$this->sql_fetch = [
@@ -73,7 +80,7 @@ class main_listener implements EventSubscriberInterface
 		$row['user_id']           = array_map('intval', explode(' ', $row['user_id']));
 
 		($event['mode'] != 'edit') ? $this->indexer->insert() : $this->indexer->replace();
-		$this->indexer->into('pm')->set($row)
+		$this->indexer->into($this->sphinx_id)->set($row)
 		;
 
 		try
@@ -98,7 +105,7 @@ class main_listener implements EventSubscriberInterface
 		// By this point all new messages should be placed into the inbox or some other folder
 
 		$this->indexer->select('id')
-					  ->from('pm')
+					  ->from($this->sphinx_id)
 					  ->where('user_id', $this->user->id())
 					  ->match('folder_id', '"' . $this->user->id() . '_-3"')
 		;
@@ -136,7 +143,7 @@ class main_listener implements EventSubscriberInterface
 		if ($event['folder_id'] == PRIVMSGS_OUTBOX)
 		{
 			$this->indexer->delete()
-						  ->from('pm')
+						  ->from($this->sphinx_id)
 						  ->where('id', 'IN', $event['msg_ids'])
 			;
 		}
@@ -161,7 +168,7 @@ class main_listener implements EventSubscriberInterface
 			if ($delete)
 			{
 				$this->indexer->delete()
-							  ->from('pm')
+							  ->from($this->sphinx_id)
 							  ->where('id', 'IN', $delete)
 				;
 				try
@@ -191,7 +198,7 @@ class main_listener implements EventSubscriberInterface
 		$result = $this->db->sql_query($sql);
 
 		$this->indexer->replace()
-					  ->into('pm')
+					  ->into($this->sphinx_id)
 		;
 		while ($row = $this->db->sql_fetchrow($result))
 		{

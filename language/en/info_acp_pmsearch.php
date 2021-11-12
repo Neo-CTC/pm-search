@@ -57,6 +57,8 @@ $lang = array_merge($lang, [
 	'ACP_PMSEARCH_INDEX_COMMANDS'   => 'index maintenance',
 	'ACP_PMSEARCH_REINDEX'          => 'Rebuild search index',
 	'ACP_PMSEARCH_ACTION_DROP'      => 'Delete search index',
+	'ACP_PMSEARCH_CONFIG'			=> 'Config entry',
+	'ACP_PMSEARCH_CONFIG_EXPLAIN'   => 'Add this entry to your sphinx.config',
 
 	// Maintenance responses
 	'ACP_PMSEARCH_INDEX_DONE'       => 'Indexing complete',

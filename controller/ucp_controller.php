@@ -44,6 +44,8 @@ class ucp_controller
 	protected $root;
 	protected $ext;
 
+	private $sphinx_id;
+
 	/**
 	 * Constructor.
 	 *
@@ -67,6 +69,8 @@ class ucp_controller
 		global $phpbb_root_path, $phpEx;
 		$this->root = $phpbb_root_path;
 		$this->ext  = $phpEx;
+
+		$this->sphinx_id = 'index_phpbb_' . $this->config['fulltext_sphinx_id'] . '_private_messages';
 	}
 
 	public function display_messages()
@@ -202,7 +206,7 @@ class ucp_controller
 
 		$search = new SphinxQL($conn);
 		$search->select('id');
-		$search->from('pm');
+		$search->from($this->sphinx_id);
 		$search->where('user_id', $this->uid);
 
 		if ($keywords)

@@ -35,6 +35,8 @@ class acp_controller
 
 	private $sphinxql_error_msg;
 	private $sphinxql_error_num;
+	private $sphinx_id;
+
 
 	public function __construct(\phpbb\config\config $config, \phpbb\language\language $language, \phpbb\log\log $log, \phpbb\request\request $request, \phpbb\template\template $template, \phpbb\user $user, \phpbb\db\driver\driver_interface $db)
 	{
@@ -58,6 +60,8 @@ class acp_controller
 		$this->sphinx_QL          = new SphinxQL($conn);
 		$this->sphinxql_error_msg = '';
 		$this->sphinxql_error_num = 0;
+
+		$this->sphinx_id = 'index_phpbb_' . $this->config['fulltext_sphinx_id'] . '_private_messages';
 	}
 
 	public function display_status()
@@ -91,7 +95,7 @@ class acp_controller
 			 */
 
 
-			$index_exists = (bool) $this->get_sphinx_indexes('pm');
+			$index_exists = (bool) $this->get_sphinx_indexes($this->sphinx_id);
 			if ($index_exists)
 			{
 
@@ -103,7 +107,7 @@ class acp_controller
 				 */
 
 
-				$this->sphinx_QL->query('SHOW INDEX pm STATUS');
+				$this->sphinx_QL->query('SHOW INDEX ' . $this->sphinx_id . ' STATUS');
 				$result = $this->search_execute();
 				if ($result)
 				{
@@ -175,7 +179,12 @@ class acp_controller
 
 
 				// Sphinx 2.x can not create the index by itself, complain to user
-				$this->template->assign_var('SPHINX_STATUS', $this->language->lang('ACP_PMSEARCH_NO_INDEX'));
+				$this->template->assign_vars([
+					'SPHINX_STATUS' => $this->language->lang('ACP_PMSEARCH_NO_INDEX'),
+					'SHOW_CONFIG' => 1,
+					'DATA_ID'     => $this->sphinx_id,
+					'DATA_PATH'   => $this->config['fulltext_sphinx_data_path'] . $this->sphinx_id,
+				]);
 			}
 			else
 			{
@@ -328,14 +337,14 @@ class acp_controller
 		$action = $this->request->variable('action', '');
 		$engine = $this->request->variable('engine', '');
 
-		if (!in_array($action,['create','delete']) || !in_array($engine,['sphinx','mysql']))
+		if (!in_array($action, ['create', 'delete']) || !in_array($engine, ['sphinx', 'mysql']))
 		{
 			// Unknown command, we stop here
 			return;
 		}
 
 		// Collect the starting time, indexing takes a long time
-		$time   = microtime(true);
+		$time = microtime(true);
 
 
 		/*
@@ -370,11 +379,11 @@ class acp_controller
 			}
 
 			// Does our index exist? Another big difference between Sphinx and Manticore
-			$index_exists = (bool) $this->get_sphinx_indexes('pm');
+			$index_exists = (bool) $this->get_sphinx_indexes($this->sphinx_id);
 			if ($version[0] == 2 && $index_exists == false)
 			{
 				// Sphinx 2.x can't do anything unless the index exists
-				trigger_error($this->language->lang('ACP_PMSEARCH_NO_INDEX'),E_USER_WARNING);
+				trigger_error($this->language->lang('ACP_PMSEARCH_NO_INDEX'), E_USER_WARNING);
 			}
 
 
@@ -389,14 +398,14 @@ class acp_controller
 			if ($version[0] == 2)
 			{
 				// Sphinx can't delete the index, but it can delete the entries
-				$this->sphinx_QL->query('DELETE FROM pm WHERE id != 0');
+				$this->sphinx_QL->query('DELETE FROM ' . $this->sphinx_id . ' WHERE id != 0');
 				$this->search_execute();
 			}
 			// Can't delete an index if it doesn't exist
-			elseif($index_exists)
+			elseif ($index_exists)
 			{
 				// Dropping the index from orbit
-				$this->sphinx_QL->query('DROP TABLE pm');
+				$this->sphinx_QL->query('DROP TABLE ' . $this->sphinx_id . '');
 				$this->search_execute();
 			}
 
@@ -418,13 +427,13 @@ class acp_controller
 
 			if ($version[3] == 0 && $version[0] > 2)
 			{
-				 // Create index for Sphinx 3.x
-				$this->sphinx_QL->query('CREATE TABLE pm(author_id integer,user_id multi,message_time bigint,message_subject field ,message_text field,folder_id field)');
+				// Create index for Sphinx 3.x
+				$this->sphinx_QL->query('CREATE TABLE ' . $this->sphinx_id . '(author_id integer,user_id multi,message_time bigint,message_subject field ,message_text field,folder_id field)');
 			}
 			elseif ($version[3] == 1)
 			{
-				 // Create index for Manticore
-				$this->sphinx_QL->query('CREATE TABLE pm(author_id integer,user_id multi,message_time timestamp,message_subject text indexed,message_text text indexed,folder_id text indexed)');
+				// Create index for Manticore
+				$this->sphinx_QL->query('CREATE TABLE ' . $this->sphinx_id . '(author_id integer,user_id multi,message_time timestamp,message_subject text indexed,message_text text indexed,folder_id text indexed)');
 			}
 			$this->search_execute();
 
@@ -442,7 +451,7 @@ class acp_controller
 
 			// Todo document how the query works
 			// Returned columns must match the column names of the index
-			$query  = "SELECT
+			$query = "SELECT
 						p.msg_id as id,
 						p.author_id author_id,
 						GROUP_CONCAT(t.user_id SEPARATOR ' ') user_id,
@@ -458,7 +467,7 @@ class acp_controller
 
 			// It is far quicker to fetch 500 rows and index all of them in one query than it is to handle them one at a time
 			$offset = 0;
-			$limit = 500;
+			$limit  = 500;
 			$result = $this->db->sql_query_limit($query, $limit);
 
 			// Todo what if indexing takes too long and the script exceeds execution time?
@@ -468,7 +477,8 @@ class acp_controller
 			while ($rows = $this->db->sql_fetchrowset($result))
 			{
 				// Set query to insert
-				$this->sphinx_QL->insert()->into('pm');
+				$this->sphinx_QL->insert()->into($this->sphinx_id)
+				;
 
 				// Minor row processing before inserting into query
 				foreach ($rows as $row)
@@ -510,6 +520,7 @@ class acp_controller
 		/*
 		 *
 		 * MySQL index
+		 *
 		 */
 
 
@@ -604,7 +615,7 @@ class acp_controller
 		// Still no version? Must be an ancient version of Sphinx
 		$my = new mysqli($this->config['pmsearch_host'], '', '', '', $this->config['pmsearch_port']);
 		$v  = $my->get_server_info();
-		if(preg_match('/^([\d.]+)/', $v, $m))
+		if (preg_match('/^([\d.]+)/', $v, $m))
 		{
 			$v   = explode('.', $m[1]);
 			$v[] = 0;

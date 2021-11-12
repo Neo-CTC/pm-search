@@ -76,6 +76,28 @@
 				<input class="button2" type="submit" id="sphinx_delete" value="{L_RUN}"/>
 			</dd>
 		</dl>
+		{% if SHOW_CONFIG %}
+		<dl>
+			<dt>
+				<label for="sphinx_config">Config</label><br/>
+				<span>{{ lang('ACP_PMSEARCH_CONFIG_EXPLAIN') }}</span>
+			</dt>
+			<dd>
+<textarea id="sphinx_config">index {{ DATA_ID }}
+{
+	type = rt
+	path = {{ DATA_PATH }}
+	rt_attr_uint = author_id
+	rt_attr_multi = user_id
+	rt_attr_bigint = message_time
+	rt_field = message_subject
+	rt_field = message_text
+	rt_field = folder_id
+}
+</textarea>
+			</dd>
+		</dl>
+		{% endif %}
 	</form>
 </fieldset>
 

@@ -24,5 +24,6 @@ services:
         arguments:
             - '@dbal.conn'
             - '@user'
+            - '@config'
         tags:
             - { name: event.listener }
