@@ -53,7 +53,6 @@ class acp_controller
 			'host'    => $this->config['pmsearch_host'],
 			'port'    => $this->config['pmsearch_port'],
 			'options' => [
-				// Todo get error message for timeouts
 				MYSQLI_OPT_CONNECT_TIMEOUT => 2,
 			],
 		]);
@@ -66,8 +65,6 @@ class acp_controller
 
 	public function display_status()
 	{
-		// Todo adjust table name to match phpbb
-		// Todo show create button if index is empty
 		// Todo check for incompatible index versions
 
 
@@ -140,7 +137,7 @@ class acp_controller
 							$this->template->assign_var('SPHINX_STATUS', $this->language->lang('ACP_PMSEARCH_CONNECTION_ERROR'));
 							break;
 						case SphinxQL_ERR_DATA:
-							$this->template->assign_var('SPHINX_STATUS', $this->language->lang('ACP_PMSEARCH_NO_INDEX'));
+							$this->template->assign_var('SPHINX_STATUS', $this->language->lang('ACP_PMSEARCH_NO_INDEX_CREATE'));
 							break;
 						case SphinxQL_ERR_PROGRAM:
 							$this->template->assign_var('SPHINX_STATUS', $this->sphinxql_error_msg);
@@ -180,10 +177,10 @@ class acp_controller
 
 				// Sphinx 2.x can not create the index by itself, complain to user
 				$this->template->assign_vars([
-					'SPHINX_STATUS' => $this->language->lang('ACP_PMSEARCH_NO_INDEX'),
-					'SHOW_CONFIG' => 1,
-					'DATA_ID'     => $this->sphinx_id,
-					'DATA_PATH'   => $this->config['fulltext_sphinx_data_path'] . $this->sphinx_id,
+					'SPHINX_STATUS' => $this->language->lang('ACP_PMSEARCH_NO_INDEX_CREATE'),
+					'SHOW_CONFIG'   => 1,
+					'DATA_ID'       => $this->sphinx_id,
+					'DATA_PATH'     => $this->config['fulltext_sphinx_data_path'] . $this->sphinx_id,
 				]);
 			}
 			else
@@ -214,15 +211,47 @@ class acp_controller
 		 *
 		 */
 
-
-		$result = $this->db->sql_query('SHOW INDEX FROM ' . PRIVMSGS_TABLE . ' WHERE key_name = "message_text"');
-		if ($this->db->sql_fetchrow($result))
+		if ($this->db->get_sql_layer() == 'mysqli')
 		{
-			$this->template->assign_var('MYSQL_STATUS', $this->language->lang('ACP_PMSEARCH_READY'));
+
+			$result  = $this->db->sql_query('SHOW INDEX FROM ' . PRIVMSGS_TABLE);
+			$indexes = [];
+			while ($row = $this->db->sql_fetchrow($result))
+			{
+				switch ($row['Key_name'])
+				{
+					case 'message_subject':
+						$indexes['message_subject'] = $row;
+						break;
+					case 'message_text':
+						$indexes['message_text'] = $row;
+						break;
+					case 'message_content':
+						$indexes['message_content'] = $row;
+						break;
+					case 'to_address':
+						$indexes['to_address'] = $row;
+				}
+			}
+
+			$i = count($indexes);
+			if ($i == 4)
+			{
+				$this->template->assign_var('MYSQL_STATUS', $this->language->lang('ACP_PMSEARCH_READY'));
+			}
+			elseif ($i > 0 && $i < 4)
+			{
+				$this->template->assign_var('MYSQL_STATUS', $this->language->lang('ACP_PMSEARCH_INCOMPLETE'));
+			}
+			else
+			{
+				$this->template->assign_var('MYSQL_STATUS', $this->language->lang('ACP_PMSEARCH_NO_INDEX'));
+			}
 		}
 		else
 		{
-			$this->template->assign_var('MYSQL_STATUS', $this->language->lang('ACP_PMSEARCH_NO_INDEX'));
+			$this->template->assign_var('MYSQL_STATUS', $this->language->lang('FULLTEXT_MYSQL_INCOMPATIBLE_DATABASE'));
+			$this->template->assign_var('MYSQL_SKIP', 1);
 		}
 
 
@@ -383,7 +412,7 @@ class acp_controller
 			if ($version[0] == 2 && $index_exists == false)
 			{
 				// Sphinx 2.x can't do anything unless the index exists
-				trigger_error($this->language->lang('ACP_PMSEARCH_NO_INDEX'), E_USER_WARNING);
+				trigger_error($this->language->lang('ACP_PMSEARCH_NO_INDEX_CREATE'), E_USER_WARNING);
 			}
 
 
@@ -526,13 +555,226 @@ class acp_controller
 
 		elseif ($engine == 'mysql')
 		{
+			if ($this->db->get_sql_layer() != 'mysqli')
+			{
+				trigger_error($this->language->lang('FULLTEXT_MYSQL_INCOMPATIBLE_DATABASE'));
+			}
+
+
+			/*
+			 *
+			 * Collect index status
+			 *
+			 */
+
+
+			// Todo deal with timeouts while waiting for the index to complete
+			$indexes = [];
+			$result = $this->db->sql_query('SHOW INDEX FROM ' . PRIVMSGS_TABLE);
+			while  ($row = $this->db->sql_fetchrow($result))
+			{
+				switch ($row['Key_name'])
+				{
+					case 'message_subject':
+						$indexes['message_subject'] = $row;
+						break;
+					case 'message_text':
+						$indexes['message_text'] = $row;
+						break;
+					case 'message_content':
+						$indexes['message_content'] = $row;
+						break;
+					case 'to_address':
+						$indexes['to_address'] = $row;
+				}
+			}
+
+			// Are any index changes currently in process
+			$result = $this->db->sql_query('SHOW PROCESSLIST');
+			while ($row = $this->db->sql_fetchrow($result))
+			{
+				if (strpos($row['Info'],'ALTER TABLE ' . PRIVMSGS_TABLE) !== false)
+				{
+					// Don't continue if MySQL is still processing the indexes
+					trigger_error($this->language->lang('ACP_PMSEARCH_PROCESSING'));
+				}
+			}
+
 			if ($action == 'delete')
 			{
-				// Alter table drop index
+
+
+				/*
+				 *
+				 * Drop MySQL indexes
+				 *
+				 */
+
+
+				if ($indexes['message_subject'])
+				{
+					$this->db->sql_query('ALTER TABLE ' . PRIVMSGS_TABLE . ' DROP INDEX  message_subject');
+				}
+				if ($indexes['message_text'])
+				{
+					$this->db->sql_query('ALTER TABLE ' . PRIVMSGS_TABLE . ' DROP INDEX message_text');
+				}
+				if ($indexes['message_content'])
+				{
+					$this->db->sql_query('ALTER TABLE ' . PRIVMSGS_TABLE . ' DROP INDEX message_content');
+				}
+				if ($indexes['to_address'])
+				{
+					$this->db->sql_query('ALTER TABLE ' . PRIVMSGS_TABLE . ' DROP INDEX to_address');
+				}
+				trigger_error($this->language->lang('ACP_PMSEARCH_DROP_DONE'));
 			}
 			elseif ($action == 'create')
 			{
-				// Alter table add full text index
+				// Todo disable search while modifying tables.
+
+				// Creating a fulltext index inside MySQL can take a significant amount of time. All the while, php is waiting until
+				// either MySQL finishes or the script hits the max execution time. Should php timeout, the user will get a message
+				// about a gateway timeout or some other vague error. This may cause the user to believe that the indexing has failed.
+				// We can do better by setting a MySQL client timeout. This is causes php to stop waiting while MySQL does its thing.
+
+
+				/*
+				 *
+				 * Setup custom MySQL connection with timeout
+				 *
+				 */
+
+
+				global $dbhost, $dbuser, $dbpasswd, $dbname, $dbport;
+				$id = mysqli_init();
+
+				// Limit time spent waiting for MySQL
+				mysqli_options($id, MYSQLI_OPT_READ_TIMEOUT, 10);
+
+				// Copy port/socket handling from phpbb mysqli driver
+				$port = (!$dbport) ? null : $dbport;
+				$socket = null;
+				if ($port)
+				{
+					if (is_numeric($port))
+					{
+						$port = (int) $port;
+					}
+					else
+					{
+						$socket = $port;
+						$port = null;
+					}
+				}
+
+				mysqli_real_connect($id, $dbhost, $dbuser, $dbpasswd, $dbname, $port, $socket, MYSQLI_CLIENT_FOUND_ROWS);
+
+
+				/*
+				 *
+				 * Collation Checks
+				 *
+				 */
+
+
+				// Todo update status check add collation check
+				$columns = [];
+				$result = $this->db->sql_query('SHOW FULL COLUMNS FROM phpbb_privmsgs WHERE Field IN ("message_text","message_subject") AND Collation != "utf8mb4_unicode_ci"');
+				while  ($row = $this->db->sql_fetchrow($result))
+				{
+					switch ($row['Field'])
+					{
+						case 'message_subject':
+							$columns['message_subject'] = $row;
+							break;
+						case 'message_text':
+							$columns['message_text'] = $row;
+							break;
+					}
+				}
+
+				if ($columns['message_subject'])
+				{
+					$result = @mysqli_query($id, 'ALTER TABLE ' . PRIVMSGS_TABLE . ' MODIFY message_subject  VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+					if ($result === false)
+					{
+						$err_id = mysqli_errno($id);
+						// Client timeout
+						if ($err_id ==  2006)
+						{
+							trigger_error($this->language->lang('ACP_PMSEARCH_IN_PROGRESS'));
+						}
+					}
+				}
+				if ($columns['message_text'])
+				{
+					$result = @mysqli_query($id, 'ALTER TABLE ' . PRIVMSGS_TABLE . ' MODIFY message_text  MEDIUMTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+					if ($result === false)
+					{
+						$err_id = mysqli_errno($id);
+						// Client timeout
+						if ($err_id ==  2006)
+						{
+							trigger_error($this->language->lang('ACP_PMSEARCH_IN_PROGRESS'));
+						}
+					}
+				}
+
+
+				/*
+				 *
+				 * Index Status
+				 */
+
+				// Add index for subjects
+				if (!$indexes['message_subject'])
+				{
+					// Add an index for searching ONLY message_subject
+					$result = @mysqli_query($id,'ALTER TABLE ' . PRIVMSGS_TABLE . ' ADD FULLTEXT  message_subject (message_subject)');
+
+					if ($result === false)
+					{
+						$err_id = mysqli_errno($id);
+						// Client timeout
+						if ($err_id ==  2006)
+						{
+							trigger_error($this->language->lang('ACP_PMSEARCH_IN_PROGRESS'));
+						}
+					}
+
+				}
+				if (!$indexes['message_text'])
+				{
+					// Add an index for searching ONLY message_subject
+					$result = @mysqli_query($id,'ALTER TABLE ' . PRIVMSGS_TABLE . ' ADD FULLTEXT  message_text (message_text)');
+
+					if ($result === false)
+					{
+						$err_id = mysqli_errno($id);
+						// Client timeout
+						if ($err_id ==  2006)
+						{
+							trigger_error($this->language->lang('ACP_PMSEARCH_IN_PROGRESS'));
+						}
+					}
+
+				}
+				if (!$indexes['message_content'])
+				{
+					// Add an index for searching message_text or BOTH message_text and message_subject.
+					$result = @mysqli_query($id,'ALTER TABLE ' . PRIVMSGS_TABLE . ' ADD FULLTEXT  message_content (message_text, message_subject)');
+					if ($result === false)
+					{
+						$err_id = mysqli_errno($id);
+						// Client timeout
+						if ($err_id ==  2006)
+						{
+							trigger_error($this->language->lang('ACP_PMSEARCH_IN_PROGRESS'));
+						}
+					}
+				}
+				trigger_error($this->language->lang('ACP_PMSEARCH_INDEX_DONE'));
 			}
 		}
 	}

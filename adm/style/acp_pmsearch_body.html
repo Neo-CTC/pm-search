@@ -18,15 +18,13 @@
 	<fieldset>
 		<legend>{{ lang('GENERAL_SEARCH_SETTINGS') }}</legend>
 		<dl>
-			<dt><label for="search_type">{{ lang('SEARCH_TYPE') }}{{ lang('COLON') }}</label></dt>
+			<dt>
+				<label for="search_type">{{ lang('SEARCH_TYPE') }}{{ lang('COLON') }}</label>
+			</dt>
 			<dd>
 				<select id="search_type" name="search_type" data-togglable-settings="true">
-					<option value="sphinx"{% if search_type == 'sphinx' %} selected{% endif %}
-							data-toggle-setting=".sphinx">Sphinx
-					</option>
-					<option value="mysql"{% if search_type == 'mysql' %} selected{% endif %}
-							data-toggle-setting=".mysql">MySQL
-					</option>
+					<option value="sphinx"{% if search_type == 'sphinx' %} selected{% endif %} data-toggle-setting=".sphinx">Sphinx</option>
+					<option value="mysql"{% if search_type == 'mysql' %} selected{% endif %} data-toggle-setting=".mysql">MySQL</option>
 				</select>
 			</dd>
 		</dl>
@@ -36,10 +34,14 @@
 				<br/><span>{L_YES_SEARCH_EXPLAIN}</span>
 			</dt>
 			<dd>
-				<label><input type="radio" class="radio" id="load_search" name="enable_search"
-							  value="1"{% if enabled %} checked="checked"{% endif %} /> {L_YES}</label>
-				<label><input type="radio" class="radio" name="enable_search"
-							  value="0"{% if not enabled %} checked="checked"{% endif %} /> {L_NO}</label>
+				<label>
+					<input type="radio" class="radio" id="load_search" name="enable_search" value="1"{% if enabled %} checked="checked"{% endif %} />
+					{L_YES}
+				</label>
+				<label>
+					<input type="radio" class="radio" name="enable_search" value="0"{% if not enabled %} checked="checked"{% endif %} />
+					{L_NO}
+				</label>
 			</dd>
 		</dl>
 
@@ -48,25 +50,26 @@
 				<label for="sphinx_hostname">{{ lang('FULLTEXT_SPHINX_HOST') }}</label>
 				<br/><span>{{ lang('FULLTEXT_SPHINX_HOST_EXPLAIN') }}</span>
 			</dt>
-			<dd><input type="text" placeholder="127.0.0.1" id="sphinx_hostname" name="hostname" value="{{ host }}"/>
+			<dd>
+				<input type="text" placeholder="127.0.0.1" id="sphinx_hostname" name="hostname" value="{{ host }}"/>
 			</dd>
 		</dl>
 		<dl class="sphinx"{% if search_type != 'sphinx' %} style="display: none"{% endif %}>
 			<dt>
 				<label for="sphinx_port">{{ lang('FULLTEXT_SPHINX_PORT') }}</label>
 				<br/><span>{{ lang('FULLTEXT_SPHINX_PORT_EXPLAIN') }}</span></dt>
-			<dd><input type="number" min="1" max="65535" placeholder="9306" id="sphinx_port" name="port"
-					   value="{{ port }}"/></dd>
+			<dd>
+				<input type="number" min="1" max="65535" placeholder="9306" id="sphinx_port" name="port" value="{{ port }}"/>
+			</dd>
 		</dl>
 	</fieldset>
 	<fieldset>
 		<legend>{{ lang('ACP_SUBMIT_CHANGES') }}</legend>
 		<p class="submit-buttons">
 			<input type="hidden" name="action" value="settings"/>
-			<input id="submit" class="button1" type="submit" name="submit" value="{{ lang('SUBMIT') }}"/>&nbsp
+			<input id="submit" class="button1" type="submit" name="submit" value="{{ lang('SUBMIT') }}"/>
 		</p>
 		{{ S_FORM_TOKEN }}
-		<!-- Todo finish form token -->
 	</fieldset>
 </form>
 

@@ -43,8 +43,12 @@ $lang = array_merge($lang, [
 	// Index status
 	'ACP_PMSEARCH_STATUS'           => 'Status',
 	'ACP_PMSEARCH_READY'            => 'Ready for use',
-	'ACP_PMSEARCH_NO_INDEX'         => 'Index missing. Please create index inside Sphinx configuration file',
-	'ACP_PMSEARCH_INDEX_EMPTY'		=> 'Index empty',
+	'ACP_PMSEARCH_PROCESSING'       => 'Indexing in process',
+	'ACP_PMSEARCH_NO_INDEX'         => 'Index missing',
+	'ACP_PMSEARCH_NO_INDEX_CREATE'  => 'Index missing. Please create index inside Sphinx configuration file',
+	'ACP_PMSEARCH_INDEX_EMPTY'      => 'Index empty',
+	'ACP_PMSEARCH_INCOMPLETE'       => 'Indexing incomplete',
+	'ACP_PMSEARCH_IN_PROGRESS'      => 'MySQL is creating the index in the background. This may take some time. Check index status in a few minutes',
 
 	// Sphinx index status
 	'ACP_PMSEARCH_VERSION'          => 'Version',
@@ -52,12 +56,11 @@ $lang = array_merge($lang, [
 	'ACP_PMSEARCH_INDEX_BYTES'      => 'Disk usage',
 	'ACP_PMSEARCH_RAM_BYTES'        => 'RAM usage',
 
-
 	// Maintenance commands
 	'ACP_PMSEARCH_INDEX_COMMANDS'   => 'index maintenance',
 	'ACP_PMSEARCH_REINDEX'          => 'Rebuild search index',
 	'ACP_PMSEARCH_ACTION_DROP'      => 'Delete search index',
-	'ACP_PMSEARCH_CONFIG'			=> 'Config entry',
+	'ACP_PMSEARCH_CONFIG'           => 'Config entry',
 	'ACP_PMSEARCH_CONFIG_EXPLAIN'   => 'Add this entry to your sphinx.config',
 
 	// Maintenance responses

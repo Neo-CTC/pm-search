@@ -18,33 +18,33 @@
 <div class="lside">
 	<table class="table2 zebra-table no-header" data-no-responsive-header="true">
 		<thead>
-		<tr>
-			<th>{{ lang('STATISTIC') }}</th>
-			<th>{{ lang('VALUE') }}</th>
-		</tr>
+			<tr>
+				<th>{{ lang('STATISTIC') }}</th>
+				<th>{{ lang('VALUE') }}</th>
+			</tr>
 		</thead>
 
 		<tbody>
-		<tr>
-			<td class="tabled">{{ lang('ACP_PMSEARCH_STATUS') ~ lang('COLON') }}</td>
-			<td class="tabled"><strong>{{ SPHINX_STATUS }}</strong></td>
-		</tr>
-		<tr>
-			<td class="tabled">{{ lang('ACP_PMSEARCH_VERSION') ~ lang('COLON') }}</td>
-			<td class="tabled"><strong>{{ SPHINX_VERSION }}</strong></td>
-		</tr>
-		<tr>
-			<td class="tabled">{{ lang('ACP_PMSEARCH_TOTAL_MESSAGES') ~ lang('COLON') }}</td>
-			<td class="tabled"><strong>{{ TOTAL_MESSAGES }}</strong></td>
-		</tr>
-		<tr>
-			<td class="tabled">{{ lang('ACP_PMSEARCH_INDEX_BYTES') ~ lang('COLON') }}</td>
-			<td class="tabled"><strong>{{ INDEX_BYTES }}</strong></td>
-		</tr>
-		<tr>
-			<td class="tabled">{{ lang('ACP_PMSEARCH_RAM_BYTES') ~ lang('COLON') }}</td>
-			<td class="tabled"><strong>{{ RAM_BYTES }}</strong></td>
-		</tr>
+			<tr>
+				<td class="tabled">{{ lang('ACP_PMSEARCH_STATUS') ~ lang('COLON') }}</td>
+				<td class="tabled"><strong>{{ SPHINX_STATUS }}</strong></td>
+			</tr>
+			<tr>
+				<td class="tabled">{{ lang('ACP_PMSEARCH_VERSION') ~ lang('COLON') }}</td>
+				<td class="tabled"><strong>{{ SPHINX_VERSION }}</strong></td>
+			</tr>
+			<tr>
+				<td class="tabled">{{ lang('ACP_PMSEARCH_TOTAL_MESSAGES') ~ lang('COLON') }}</td>
+				<td class="tabled"><strong>{{ TOTAL_MESSAGES }}</strong></td>
+			</tr>
+			<tr>
+				<td class="tabled">{{ lang('ACP_PMSEARCH_INDEX_BYTES') ~ lang('COLON') }}</td>
+				<td class="tabled"><strong>{{ INDEX_BYTES }}</strong></td>
+			</tr>
+			<tr>
+				<td class="tabled">{{ lang('ACP_PMSEARCH_RAM_BYTES') ~ lang('COLON') }}</td>
+				<td class="tabled"><strong>{{ RAM_BYTES }}</strong></td>
+			</tr>
 		</tbody>
 	</table>
 </div>
@@ -54,8 +54,7 @@
 	<form id="sphinx_action_reindex" method="post" action="{{ U_ACTION }}" data-ajax="true">
 		<dl>
 			<dt>
-				<label for="sphinx_reindex">{{ lang('ACP_PMSEARCH_REINDEX') }}</label><br/>
-				<span>&nbsp;</span>
+				<label for="sphinx_reindex">{{ lang('ACP_PMSEARCH_REINDEX') }}</label>
 			</dt>
 			<dd>
 				<input type="hidden" name="action" value="create"/>
@@ -67,8 +66,7 @@
 	<form id="sphinx_action_delete" method="post" action="{{ U_ACTION }}" data-ajax="true">
 		<dl>
 			<dt>
-				<label for="sphinx_delete">{{ lang('ACP_PMSEARCH_ACTION_DROP') }}</label><br/>
-				<span>&nbsp;</span>
+				<label for="sphinx_delete">{{ lang('ACP_PMSEARCH_ACTION_DROP') }}</label>
 			</dt>
 			<dd>
 				<input type="hidden" name="action" value="delete"/>
@@ -77,12 +75,12 @@
 			</dd>
 		</dl>
 		{% if SHOW_CONFIG %}
-		<dl>
-			<dt>
-				<label for="sphinx_config">Config</label><br/>
-				<span>{{ lang('ACP_PMSEARCH_CONFIG_EXPLAIN') }}</span>
-			</dt>
-			<dd>
+			<dl>
+				<dt>
+					<label for="sphinx_config">Config</label>
+					<br/><span>{{ lang('ACP_PMSEARCH_CONFIG_EXPLAIN') }}</span>
+				</dt>
+				<dd>
 <textarea id="sphinx_config">index {{ DATA_ID }}
 {
 	type = rt
@@ -95,8 +93,8 @@
 	rt_field = folder_id
 }
 </textarea>
-			</dd>
-		</dl>
+				</dd>
+			</dl>
 		{% endif %}
 	</form>
 </fieldset>
@@ -105,50 +103,51 @@
 <div class="lside">
 	<table class="table2 zebra-table no-header" data-no-responsive-header="true">
 		<thead>
-		<tr>
-			<th>{{ lang('STATISTIC') }}</th>
-			<th>{{ lang('VALUE') }}</th>
-		</tr>
+			<tr>
+				<th>{{ lang('STATISTIC') }}</th>
+				<th>{{ lang('VALUE') }}</th>
+			</tr>
 		</thead>
 		<tbody>
-		<tr>
-			<td class="tabled">{{ lang('ACP_PMSEARCH_STATUS') ~ lang('COLON') }}</td>
-			<td class="tabled">
-				<strong>{% if MYSQL_STATUS %}{{ lang('ACP_PMSEARCH_READY') }}{% else %}{{ lang('ACP_PMSEARCH_NO_INDEX') }}{% endif %}</strong>
-			</td>
-		</tr>
+			<tr>
+				<td class="tabled">{{ lang('ACP_PMSEARCH_STATUS') ~ lang('COLON') }}</td>
+				<td class="tabled">
+					<strong>{{ MYSQL_STATUS }}</strong>
+				</td>
+			</tr>
 		</tbody>
 	</table>
 </div>
 
-<fieldset>
-	<legend>MySQL Fulltext {{ lang('ACP_PMSEARCH_INDEX_COMMANDS') }}</legend>
-	<form id="mysql_action_reindex" method="post" action="{{ U_ACTION }}" data-ajax="true">
-		<dl>
-			<dt>
-				<label for="mysql_reindex">{{ lang('ACP_PMSEARCH_REINDEX') }}</label><br/>
-				<span>&nbsp;</span>
-			</dt>
-			<dd>
-				<input type="hidden" name="action" value="create"/>
-				<input type="hidden" name="engine" value="mysql"/>
-				<input class="button2" type="submit" id="mysql_reindex" value="{L_RUN}"/>
-			</dd>
-		</dl>
-	</form>
-	<form id="mysql_action_delete" method="post" action="{{ U_ACTION }}" data-ajax="true">
-		<dl>
-			<dt>
-				<label for="mysql_delete">{{ lang('ACP_PMSEARCH_ACTION_DROP') }}</label><br/>
-				<span>&nbsp;</span>
-			</dt>
-			<dd>
-				<input type="hidden" name="action" value="delete"/>
-				<input type="hidden" name="engine" value="mysql"/>
-				<input class="button2" type="submit" id="mysql_delete" value="{L_RUN}"/>
-			</dd>
-		</dl>
-	</form>
-</fieldset>
+{%  if not MYSQL_SKIP %}
+	<fieldset>
+		<legend>MySQL Fulltext {{ lang('ACP_PMSEARCH_INDEX_COMMANDS') }}</legend>
+		<form id="mysql_action_reindex" method="post" action="{{ U_ACTION }}" data-ajax="true">
+			<dl>
+				<dt>
+					<label for="mysql_reindex">{{ lang('ACP_PMSEARCH_REINDEX') }}</label>
+				</dt>
+				<dd>
+					<input type="hidden" name="action" value="create"/>
+					<input type="hidden" name="engine" value="mysql"/>
+					<input class="button2" type="submit" id="mysql_reindex" value="{L_RUN}"/>
+				</dd>
+			</dl>
+		</form>
+		<form id="mysql_action_delete" method="post" action="{{ U_ACTION }}" data-ajax="true">
+			<dl>
+				<dt>
+					<label for="mysql_delete">{{ lang('ACP_PMSEARCH_ACTION_DROP') }}</label><br/>
+					<span>&nbsp;</span>
+				</dt>
+				<dd>
+					<input type="hidden" name="action" value="delete"/>
+					<input type="hidden" name="engine" value="mysql"/>
+					<input class="button2" type="submit" id="mysql_delete" value="{L_RUN}"/>
+				</dd>
+			</dl>
+		</form>
+	</fieldset>
+{% endif %}
 
 {% include 'overall_footer.html' %}

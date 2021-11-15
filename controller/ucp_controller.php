@@ -23,6 +23,7 @@ use phpbb\pagination;
 use phpbb\request\request;
 use phpbb\template\template;
 use phpbb\user;
+use Symfony\Component\Config\Definition\Exception\Exception;
 
 include('includes/functions_privmsgs.php');
 
@@ -94,6 +95,7 @@ class ucp_controller
 		// Todo pagination jump box not working
 		// Todo author and keyword not working together?
 		// Todo allow searching multiple authors/sent to
+		// Todo enable/disable search
 
 
 		/*
@@ -130,7 +132,7 @@ class ucp_controller
 			trigger_error($this->language->lang('UCP_PMSEARCH_NOT_BOTH'));
 		}
 
-		// Un-escape quotes
+		// Decode quotes
 		$keywords = str_replace('&quot;', '"', $keywords);
 
 		// Split from/sent field into an id array if needed
@@ -193,86 +195,170 @@ class ucp_controller
 		}
 
 
-		/*
-		 *
-		 * Setup SphinxQL
-		 *
-		 */
-
-
-		$conn = new Connection();
-		// Todo get host/port from config
-		$conn->setParams(['host' => 'localhost', 'port' => 9306]);
-
-		$search = new SphinxQL($conn);
-		$search->select('id');
-		$search->from($this->sphinx_id);
-		$search->where('user_id', $this->uid);
-
-		if ($keywords)
+		if ($this->config['pmsearch_engine'] == 'sphinx')
 		{
-			$search->match($search_field, $keywords, true);
-		}
-		if ($from_id_array)
-		{
-			$search->where('author_id', 'IN', $from_id_array);
-		}
-		if ($sent_id_array)
-		{
-			$search->where('author_id', '=', $this->uid);
-			foreach ($sent_id_array as $id)
+			/*
+			 *
+			 * Setup SphinxQL
+			 *
+			 */
+
+
+			$conn = new Connection();
+			// Todo get host/port from config
+			$conn->setParams(['host' => $this->config['pmsearch_host'], 'port' => $this->config['pmsearch_port']]);
+
+			$search = new SphinxQL($conn);
+			$search->select('id');
+			$search->from($this->sphinx_id);
+			$search->where('user_id', $this->uid);
+
+			if ($keywords)
 			{
-				$search->where('user_id', $id);
+				$search->match($search_field, $keywords, true);
+			}
+			if ($from_id_array)
+			{
+				$search->where('author_id', 'IN', $from_id_array);
+			}
+			if ($sent_id_array)
+			{
+				$search->where('author_id', '=', $this->uid);
+				foreach ($sent_id_array as $id)
+				{
+					$search->where('user_id', $id);
+				}
+			}
+			if ($folder_ids)
+			{
+				$search->match('folder_id', $folder_ids, true);
+			}
+			$search->orderBy($order, $direction);
+			$search->limit($start, $this->config['posts_per_page']);
+
+
+			/*
+			 *
+			 * Process SphinxQL
+			 *
+			 */
+
+
+			$rows        = [];
+			$total_found = 0;
+			try
+			{
+				// Fetch matches
+				$result = $search->execute();
+				$rows   = $result->fetchAllAssoc();
+
+				// Todo also fetch any errors
+				// Fetch the 'total found' variable from metadata
+				$search->query("SHOW META LIKE 'total_found'");
+				$result      = $search->execute();
+				$meta_data   = $result->fetchAllNum();
+				$total_found = $meta_data[0][1];
+
+			}
+			catch (ConnectionException $e)
+			{
+				// Can't connect
+				trigger_error($this->language->lang('UCP_PMSEARCH_ERR_CONN'));
+				// Todo log errors
+			}
+			catch (DatabaseException $e)
+			{
+				// Bad sql or missing table or some other problem
+				trigger_error($this->language->lang('UCP_PMSEARCH_ERR_DB'));
+			}
+			catch (SphinxQLException $e)
+			{
+				// Unknown error
+				trigger_error($this->language->lang('UCP_PMSEARCH_ERR_SPHINX'));
 			}
 		}
-		if ($folder_ids)
+		else
 		{
-			$search->match('folder_id', $folder_ids, true);
+
+
+			/*
+			 *
+			 * Setup MySQL
+			 *
+			 */
+
+
+			$where = ['t.user_id = ' . $this->uid];
+
+			// Convert search fields to string
+			$columns = is_array($search_field) ? implode(',', $search_field) : $search_field;
+
+			// Prep keywords for matching
+			if ($keywords)
+			{
+				// Add search operator to each keyword
+				$match = [];
+				foreach (explode(' ', $keywords) as $v)
+				{
+					// Todo test escaping with search operators
+					// Strip search operators
+					$v = str_replace(['~', '@', '(', ')', '<', '>', '\\', '/'], '', $v);
+
+					// After all that striping do we even have any keywords left?
+					if (strlen($v) == 0 )
+					{
+						trigger_error($this->language->lang('UCP_PMSEARCH_ERR_DB'),E_USER_WARNING);
+					}
+
+					// Find unmatched double quotes
+					if (substr_count($v,'"') % 2 == 1)
+					{
+						trigger_error($this->language->lang('UCP_PMSEARCH_ERR_DB'),E_USER_WARNING);
+					}
+
+					// Let phpBB handle any escaping
+					$v = $this->db->sql_escape($v);
+
+					// Add "must include word" search operator
+					$match[] = (substr($v, 0, 1) != '-') ? '+' . $v : $v;
+				}
+				// Boolean mode enables text operators
+				$where[] = 'MATCH(' . $columns . ") AGAINST('" . implode(' ', $match) . "' IN BOOLEAN MODE)";
+			}
+
+			if ($from_id_array)
+			{
+				$where[] = 'p.author_id in (' . implode(',', $from_id_array) . ')';
+			}
+			if ($sent_id_array)
+			{
+				$where[] = 'p.author_id = ' . $this->uid;
+				$where[] = 'MATCH(p.to_address) AGAINST("u_' . implode(' ', $sent_id_array) . '")';
+			}
+			if ($folder_id_array)
+			{
+				$where[] = 't.folder_id in (' . implode(',', $folders) . ')';
+			}
+
+			// Where to string
+			$where = implode(' AND ', $where);
+
+			$sql = 'SELECT SQL_CALC_FOUND_ROWS p.msg_id id 
+				FROM ' . PRIVMSGS_TABLE . ' p 
+				JOIN ' . PRIVMSGS_TO_TABLE . ' t ON p.msg_id = t.msg_id
+				WHERE ' . $where . '
+				GROUP BY p.msg_id
+				ORDER BY ' . $order . ' ' . $direction . '
+				LIMIT ' . $start . ',' . $this->config['posts_per_page'];
+
+			// Get matching message ids
+			$result = $this->db->sql_query($sql);
+			$rows   = $this->db->sql_fetchrowset($result);
+
+			// Get total rows
+			$result      = $this->db->sql_query('SELECT FOUND_ROWS() as total_count');
+			$total_found = $this->db->sql_fetchrow($result)['total_count'];
 		}
-		$search->orderBy($order, $direction);
-		$search->limit($start, $this->config['posts_per_page']);
-
-
-		/*
-		 *
-		 * Process SphinxQL
-		 *
-		 */
-
-
-		$rows        = [];
-		$total_found = 0;
-		try
-		{
-			// Fetch matches
-			$result = $search->execute();
-			$rows   = $result->fetchAllAssoc();
-
-			// Todo also fetch any errors
-			// Fetch the 'total found' variable from metadata
-			$search->query("SHOW META LIKE 'total_found'");
-			$result      = $search->execute();
-			$meta_data   = $result->fetchAllNum();
-			$total_found = $meta_data[0][1];
-
-		}
-		catch (ConnectionException $e)
-		{
-			// Can't connect
-			trigger_error($this->language->lang('UCP_PMSEARCH_ERR_CONN'));
-			// Todo log errors
-		}
-		catch (DatabaseException $e)
-		{
-			// Bad sql or missing table or some other problem
-			trigger_error($this->language->lang('UCP_PMSEARCH_ERR_DB'));
-		}
-		catch (SphinxQLException $e)
-		{
-			// Unknown error
-			trigger_error($this->language->lang('UCP_PMSEARCH_ERR_SPHINX'));
-		}
-
 
 		/*
 		 *
@@ -316,6 +402,7 @@ class ucp_controller
 					],
 				],
 				'WHERE'     => $sql_where,
+				'GROUP_BY'  => 'p.msg_id',
 				'ORDER_BY'  => $order . ' ' . $direction,
 			];
 			$sql       = $this->db->sql_build_query('SELECT', $sql_array);
@@ -409,7 +496,7 @@ class ucp_controller
 		$start     = $this->pagination->validate_start($start, $this->config['posts_per_page'], $total_found);
 		$url_parms = $keywords ? '&keywords=' . urlencode($keywords) : '';
 		$url_parms .= $from ? '&from=' . urlencode($from) : '';
-		$url_parms .= $sent ? '&to=' . urlencode($sent) : '';
+		$url_parms .= $sent ? '&sent=' . urlencode($sent) : '';
 		foreach ($folders as $f)
 		{
 			$url_parms .= '&fid[]=' . substr($f, strpos($f, '_') + 1, -1);
