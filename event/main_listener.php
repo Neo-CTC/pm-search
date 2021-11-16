@@ -73,6 +73,8 @@ class main_listener implements EventSubscriberInterface
 
 	public function submit($event)
 	{
+		// Todo skip if not using sphinx
+		// Todo catch errors
 		$this->sql_fetch['WHERE'] = 'p.msg_id = ' . $event['data']['msg_id'];
 		$sql                      = $this->db->sql_build_query('SELECT', $this->sql_fetch);
 		$result                   = $this->db->sql_query($sql);
@@ -119,9 +121,14 @@ class main_listener implements EventSubscriberInterface
 			$meta_data   = $meta->fetchAllNum();
 			$total_found = $meta_data[0][1];
 		}
-		catch (Exception $e)
+		catch (ConnectionException $e)
 		{
-			// Todo error handling
+		}
+		catch (DatabaseException $e)
+		{
+		}
+		catch (SphinxQLException $e)
+		{
 		}
 		if ($total_found > 0)
 		{
@@ -209,9 +216,14 @@ class main_listener implements EventSubscriberInterface
 		{
 			$this->indexer->execute();
 		}
-		catch (Exception $e)
+		catch (ConnectionException $e)
 		{
-			// Todo error handling
+		}
+		catch (DatabaseException $e)
+		{
+		}
+		catch (SphinxQLException $e)
+		{
 		}
 	}
 }
