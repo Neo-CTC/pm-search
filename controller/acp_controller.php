@@ -37,6 +37,8 @@ class acp_controller
 	private $sphinxql_error_num;
 	private $sphinx_id;
 
+	private $mysql_indexes;
+
 
 	public function __construct(\phpbb\config\config $config, \phpbb\language\language $language, \phpbb\log\log $log, \phpbb\request\request $request, \phpbb\template\template $template, \phpbb\user $user, \phpbb\db\driver\driver_interface $db)
 	{
@@ -48,6 +50,7 @@ class acp_controller
 		$this->user     = $user;
 		$this->db       = $db;
 
+		// Prep connection to Sphinx
 		$conn = new Connection();
 		$conn->setParams([
 			'host'    => $this->config['pmsearch_host'],
@@ -60,7 +63,15 @@ class acp_controller
 		$this->sphinxql_error_msg = '';
 		$this->sphinxql_error_num = 0;
 
+		// Create new sphinx id if needed
+		if (!$this->config['fulltext_sphinx_id'])
+			{
+				$this->config->set('fulltext_sphinx_id', unique_id());
+			}
 		$this->sphinx_id = 'index_phpbb_' . $this->config['fulltext_sphinx_id'] . '_private_messages';
+
+		// List of full-text MySQL indexes needed for searching
+		$this->mysql_indexes = ['message_subject','message_text','message_content','to_address'];
 	}
 
 	public function display_status()
@@ -214,32 +225,16 @@ class acp_controller
 		if ($this->db->get_sql_layer() == 'mysqli')
 		{
 
-			$result  = $this->db->sql_query('SHOW INDEX FROM ' . PRIVMSGS_TABLE);
-			$indexes = [];
-			while ($row = $this->db->sql_fetchrow($result))
-			{
-				switch ($row['Key_name'])
-				{
-					case 'message_subject':
-						$indexes['message_subject'] = $row;
-						break;
-					case 'message_text':
-						$indexes['message_text'] = $row;
-						break;
-					case 'message_content':
-						$indexes['message_content'] = $row;
-						break;
-					case 'to_address':
-						$indexes['to_address'] = $row;
-				}
-			}
+			// Fetch list of all indexes
+			$indexes = $this->get_mysql_indexes();
 
+			// Todo we can probably do better than a simple count of returned indexes
 			$i = count($indexes);
-			if ($i == 4)
+			if ($i == count($this->mysql_indexes))
 			{
 				$this->template->assign_var('MYSQL_STATUS', $this->language->lang('ACP_PMSEARCH_READY'));
 			}
-			elseif ($i > 0 && $i < 4)
+			elseif ($i > 0)
 			{
 				$this->template->assign_var('MYSQL_STATUS', $this->language->lang('ACP_PMSEARCH_INCOMPLETE'));
 			}
@@ -434,7 +429,7 @@ class acp_controller
 			elseif ($index_exists)
 			{
 				// Dropping the index from orbit
-				$this->sphinx_QL->query('DROP TABLE ' . $this->sphinx_id . '');
+				$this->sphinx_QL->query('DROP TABLE ' . $this->sphinx_id);
 				$this->search_execute();
 			}
 
@@ -555,6 +550,9 @@ class acp_controller
 
 		elseif ($engine == 'mysql')
 		{
+			// Todo deal with timeouts while waiting for the index to complete
+
+			// Must use MySQL to use MySQL
 			if ($this->db->get_sql_layer() != 'mysqli')
 			{
 				trigger_error($this->language->lang('FULLTEXT_MYSQL_INCOMPATIBLE_DATABASE'));
@@ -568,37 +566,20 @@ class acp_controller
 			 */
 
 
-			// Todo deal with timeouts while waiting for the index to complete
-			$indexes = [];
-			$result = $this->db->sql_query('SHOW INDEX FROM ' . PRIVMSGS_TABLE);
-			while  ($row = $this->db->sql_fetchrow($result))
-			{
-				switch ($row['Key_name'])
-				{
-					case 'message_subject':
-						$indexes['message_subject'] = $row;
-						break;
-					case 'message_text':
-						$indexes['message_text'] = $row;
-						break;
-					case 'message_content':
-						$indexes['message_content'] = $row;
-						break;
-					case 'to_address':
-						$indexes['to_address'] = $row;
-				}
-			}
-
-			// Are any index changes currently in process
+			// Stop if any table changes are currently in progress
 			$result = $this->db->sql_query('SHOW PROCESSLIST');
 			while ($row = $this->db->sql_fetchrow($result))
 			{
+				// The Info column contains the SQL query of the process
 				if (strpos($row['Info'],'ALTER TABLE ' . PRIVMSGS_TABLE) !== false)
 				{
 					// Don't continue if MySQL is still processing the indexes
 					trigger_error($this->language->lang('ACP_PMSEARCH_PROCESSING'));
 				}
 			}
+
+			// Fetch list of all indexes
+			$indexes = $this->get_mysql_indexes();
 
 			if ($action == 'delete')
 			{
@@ -611,23 +592,12 @@ class acp_controller
 				 */
 
 
-				if ($indexes['message_subject'])
+				foreach($indexes as $v)
 				{
-					$this->db->sql_query('ALTER TABLE ' . PRIVMSGS_TABLE . ' DROP INDEX  message_subject');
-				}
-				if ($indexes['message_text'])
-				{
-					$this->db->sql_query('ALTER TABLE ' . PRIVMSGS_TABLE . ' DROP INDEX message_text');
-				}
-				if ($indexes['message_content'])
-				{
-					$this->db->sql_query('ALTER TABLE ' . PRIVMSGS_TABLE . ' DROP INDEX message_content');
-				}
-				if ($indexes['to_address'])
-				{
-					$this->db->sql_query('ALTER TABLE ' . PRIVMSGS_TABLE . ' DROP INDEX to_address');
+					$this->db->sql_query('ALTER TABLE ' . PRIVMSGS_TABLE . ' DROP INDEX  ' . $v);
 				}
 				trigger_error($this->language->lang('ACP_PMSEARCH_DROP_DONE'));
+
 			}
 			elseif ($action == 'create')
 			{
@@ -678,38 +648,13 @@ class acp_controller
 				 */
 
 
-				// Todo update status check add collation check
-				$columns = [];
-				$result = $this->db->sql_query('SHOW FULL COLUMNS FROM phpbb_privmsgs WHERE Field IN ("message_text","message_subject") AND Collation != "utf8mb4_unicode_ci"');
-				while  ($row = $this->db->sql_fetchrow($result))
+				// Fetch column collation for selected columns
+				$result = $this->db->sql_query('SHOW FULL COLUMNS FROM ' . PRIVMSGS_TABLE . ' WHERE Field IN ("message_text","message_subject") AND Collation == "utf8mb4_unicode_ci"');
+				foreach($this->db->sql_fetchrowset($result) as $row)
 				{
-					switch ($row['Field'])
-					{
-						case 'message_subject':
-							$columns['message_subject'] = $row;
-							break;
-						case 'message_text':
-							$columns['message_text'] = $row;
-							break;
-					}
-				}
-
-				if ($columns['message_subject'])
-				{
-					$result = @mysqli_query($id, 'ALTER TABLE ' . PRIVMSGS_TABLE . ' MODIFY message_subject  VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
-					if ($result === false)
-					{
-						$err_id = mysqli_errno($id);
-						// Client timeout
-						if ($err_id ==  2006)
-						{
-							trigger_error($this->language->lang('ACP_PMSEARCH_IN_PROGRESS'));
-						}
-					}
-				}
-				if ($columns['message_text'])
-				{
-					$result = @mysqli_query($id, 'ALTER TABLE ' . PRIVMSGS_TABLE . ' MODIFY message_text  MEDIUMTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+					// Change column from utf8-bin to utf8mb4-unicode-ci
+					// Todo replace silence operator?
+					$result = @mysqli_query($id, 'ALTER TABLE ' . PRIVMSGS_TABLE . ' MODIFY '. $row['Field'] . ' ' . $row['Type'] . ' CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
 					if ($result === false)
 					{
 						$err_id = mysqli_errno($id);
@@ -724,56 +669,29 @@ class acp_controller
 
 				/*
 				 *
-				 * Index Status
+				 * Create Indexes
+				 *
 				 */
 
-				// Add index for subjects
-				if (!$indexes['message_subject'])
+
+				foreach($this->mysql_indexes as $v)
 				{
-					// Add an index for searching ONLY message_subject
-					$result = @mysqli_query($id,'ALTER TABLE ' . PRIVMSGS_TABLE . ' ADD FULLTEXT  message_subject (message_subject)');
-
-					if ($result === false)
+					if(!in_array($v, $indexes))
 					{
-						$err_id = mysqli_errno($id);
-						// Client timeout
-						if ($err_id ==  2006)
+						$i = $v . ' (' . (($v != 'message_content') ? $v : 'message_text,message_subject') . ')';
+						$result = @mysqli_query($id,'ALTER TABLE ' . PRIVMSGS_TABLE . ' ADD FULLTEXT '. $i);
+						if ($result === false)
 						{
-							trigger_error($this->language->lang('ACP_PMSEARCH_IN_PROGRESS'));
-						}
-					}
-
-				}
-				if (!$indexes['message_text'])
-				{
-					// Add an index for searching ONLY message_subject
-					$result = @mysqli_query($id,'ALTER TABLE ' . PRIVMSGS_TABLE . ' ADD FULLTEXT  message_text (message_text)');
-
-					if ($result === false)
-					{
-						$err_id = mysqli_errno($id);
-						// Client timeout
-						if ($err_id ==  2006)
-						{
-							trigger_error($this->language->lang('ACP_PMSEARCH_IN_PROGRESS'));
-						}
-					}
-
-				}
-				if (!$indexes['message_content'])
-				{
-					// Add an index for searching message_text or BOTH message_text and message_subject.
-					$result = @mysqli_query($id,'ALTER TABLE ' . PRIVMSGS_TABLE . ' ADD FULLTEXT  message_content (message_text, message_subject)');
-					if ($result === false)
-					{
-						$err_id = mysqli_errno($id);
-						// Client timeout
-						if ($err_id ==  2006)
-						{
-							trigger_error($this->language->lang('ACP_PMSEARCH_IN_PROGRESS'));
+							$err_id = mysqli_errno($id);
+							// Client timeout
+							if ($err_id ==  2006)
+							{
+								trigger_error($this->language->lang('ACP_PMSEARCH_IN_PROGRESS'));
+							}
 						}
 					}
 				}
+
 				trigger_error($this->language->lang('ACP_PMSEARCH_INDEX_DONE'));
 			}
 		}
@@ -872,12 +790,12 @@ class acp_controller
 	{
 		$index ? $this->sphinx_QL->query("SHOW TABLES LIKE '$index'") : $this->sphinx_QL->query('SHOW TABLES');
 		$result = $this->search_execute();
-		if ($result)
+		if ($result->count())
 		{
 			$list = [];
 			while ($row = $result->fetchAssoc())
 			{
-				$list[] = $row['Value'];
+				$list[] = $row['Index'];
 			}
 			return $list;
 		}
@@ -885,5 +803,24 @@ class acp_controller
 		{
 			return false;
 		}
+	}
+
+	private function get_mysql_indexes()
+	{
+		// Fetch list of all indexes
+		$i = [];
+		$result = $this->db->sql_query('SHOW INDEX FROM ' . PRIVMSGS_TABLE);
+		while  ($row = $this->db->sql_fetchrow($result))
+		{
+			if (in_array($row['Key_name'],$this->mysql_indexes))
+			{
+				// Avoid entering duplicate indexes, the message_content index is reported twice,
+				if(!in_array($row['Key_name'],$i))
+				{
+					$i[] = $row['Key_name'];
+				}
+			}
+		}
+		return $i;
 	}
 }

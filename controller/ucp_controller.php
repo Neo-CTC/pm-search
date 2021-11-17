@@ -23,9 +23,6 @@ use phpbb\pagination;
 use phpbb\request\request;
 use phpbb\template\template;
 use phpbb\user;
-use Symfony\Component\Config\Definition\Exception\Exception;
-
-include('includes/functions_privmsgs.php');
 
 /**
  * PM Search UCP controller.
@@ -70,6 +67,9 @@ class ucp_controller
 		global $phpbb_root_path, $phpEx;
 		$this->root = $phpbb_root_path;
 		$this->ext  = $phpEx;
+
+		// Need to borrow a few functions from phpbb
+		include($this->root . 'includes/functions_privmsgs.' . $this->ext);
 
 		$this->sphinx_id = 'index_phpbb_' . $this->config['fulltext_sphinx_id'] . '_private_messages';
 	}
@@ -378,8 +378,9 @@ class ucp_controller
 			$sql_where = $this->db->sql_in_set('p.msg_id', $message_ids);
 
 			// SQL for fetching messages from ids
+			// We run MAX() on the folder id in the unlikely event that the message is in two different folders. Eg, sending a pm to yourself
 			$sql_array = [
-				'SELECT'    => 'p.msg_id, p.author_id, u.username as author_name, u.user_colour as author_colour, p.message_time, p.message_subject, p.message_text, p.bbcode_uid, p.bbcode_bitfield, p.to_address, p.bcc_address, t.folder_id, f.folder_name',
+				'SELECT'    => 'p.msg_id, p.author_id, u.username as author_name, u.user_colour as author_colour, p.message_time, p.message_subject, p.message_text, p.bbcode_uid, p.bbcode_bitfield, p.to_address, p.bcc_address, MAX(t.folder_id) folder_id',
 				'FROM'      => [
 					PRIVMSGS_TABLE => 'p',
 				],
@@ -394,11 +395,6 @@ class ucp_controller
 						// Get the folder id of the message for current user
 						'FROM' => [PRIVMSGS_TO_TABLE => 't'],
 						'ON'   => 'p.msg_id = t.msg_id and t.user_id = ' . $this->uid,
-					],
-					[
-						// Get the folder name from id
-						'FROM' => [PRIVMSGS_FOLDER_TABLE => 'f'],
-						'ON'   => 't.folder_id = f.folder_id',
 					],
 				],
 				'WHERE'     => $sql_where,
@@ -437,7 +433,7 @@ class ucp_controller
 
 				/*
 				 *
-				 * Build recipient header
+				 * Build recipient list
 				 *
 				 */
 
@@ -450,12 +446,12 @@ class ucp_controller
 
 				/*
 				 *
-				 * Assign template block for messages
+				 * Build folder list
 				 *
 				 */
 
 
-				// Process folder name
+				// This was part of the SQL query but with MAX() on the folder id, it's safer to find the names separately
 				switch ($row['folder_id'])
 				{
 					case -2:
@@ -468,8 +464,18 @@ class ucp_controller
 						$folder_name = 'Inbox';
 						break;
 					default:
-						$folder_name = $row['folder_name'];
+						$this->db->sql_query('SELECT folder_name FROM ' . PRIVMSGS_FOLDER_TABLE . ' WHERE folder_id = ' . $row['folder_id']);
+						$folder_name = $this->db->sql_fetchfield('folder_name');
 				}
+
+
+				/*
+				 *
+				 * Assign template block for messages
+				 *
+				 */
+
+
 				$this->template->assign_block_vars('searchresults', [
 					'DATE'       => (!empty($row['message_time'])) ? $this->user->format_date($row['message_time']) : '',
 					'AUTHOR'     => get_username_string('full', $row['author_id'], $row['author_name'], $row['author_colour']),

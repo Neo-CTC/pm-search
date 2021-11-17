@@ -44,7 +44,7 @@ class install_acp_module extends \phpbb\db\migration\migration
 				'ACP_PMSEARCH_TITLE',
 				[
 					'module_basename' => '\crosstimecafe\pmsearch\acp\main_module',
-					'modes'           => ['settings'],
+					'modes'           => ['settings','status'],
 				],
 			]],
 			['config.add', ['pmsearch_enable', 0]],
