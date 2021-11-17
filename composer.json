@@ -3,8 +3,8 @@
   "type": "phpbb-extension",
   "description": "Search for private messages",
   "homepage": "https://crosstimecafe.com",
-  "version": "dev-0.2.0",
-  "time": "2021-10-16",
+  "version": "dev-0.3.0",
+  "time": "2021-11-17",
   "license": "GPL-2.0-only",
   "authors": [
     {
