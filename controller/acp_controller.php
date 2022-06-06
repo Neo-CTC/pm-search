@@ -649,7 +649,7 @@ class acp_controller
 
 
 				// Fetch column collation for selected columns
-				$result = $this->db->sql_query('SHOW FULL COLUMNS FROM ' . PRIVMSGS_TABLE . ' WHERE Field IN ("message_text","message_subject") AND Collation == "utf8mb4_unicode_ci"');
+				$result = $this->db->sql_query('SHOW FULL COLUMNS FROM ' . PRIVMSGS_TABLE . ' WHERE Field IN ("message_text","message_subject") AND Collation = "utf8mb4_unicode_ci"');
 				foreach($this->db->sql_fetchrowset($result) as $row)
 				{
 					// Change column from utf8-bin to utf8mb4-unicode-ci

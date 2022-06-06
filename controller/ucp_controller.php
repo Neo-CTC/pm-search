@@ -343,7 +343,7 @@ class ucp_controller
 			// Where to string
 			$where = implode(' AND ', $where);
 
-			$sql = 'SELECT SQL_CALC_FOUND_ROWS p.msg_id id 
+			$sql = 'SELECT  p.msg_id id 
 				FROM ' . PRIVMSGS_TABLE . ' p 
 				JOIN ' . PRIVMSGS_TO_TABLE . ' t ON p.msg_id = t.msg_id
 				WHERE ' . $where . '
@@ -355,8 +355,12 @@ class ucp_controller
 			$result = $this->db->sql_query($sql);
 			$rows   = $this->db->sql_fetchrowset($result);
 
-			// Get total rows
-			$result      = $this->db->sql_query('SELECT FOUND_ROWS() as total_count');
+			// Count all the distinct message id's to find total count of rows
+            $sql = 'SELECT COUNT(DISTINCT p.msg_id) as total_count
+                FROM ' . PRIVMSGS_TABLE . ' p 
+				JOIN ' . PRIVMSGS_TO_TABLE . ' t ON p.msg_id = t.msg_id
+				WHERE ' . $where;
+			$result      = $this->db->sql_query($sql);
 			$total_found = $this->db->sql_fetchrow($result)['total_count'];
 		}
 
