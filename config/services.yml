@@ -19,6 +19,7 @@ services:
             - '@user'
             - '@pagination'
             - '@config'
+            - '@auth'
     crosstimecafe.pmsearch.listener:
         class: crosstimecafe\pmsearch\event\main_listener
         arguments:

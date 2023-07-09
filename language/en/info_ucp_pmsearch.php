@@ -59,7 +59,9 @@ $lang = array_merge($lang, [
 	'UCP_PMSEARCH_FOUND'    => 'Search found ',
 	'UCP_PMSEARCH_JUMP'     => 'Jump to message',
 
-	'UCP_PMSEARCH_ERR_CONN'   => 'Problem connecting to search engine',
-	'UCP_PMSEARCH_ERR_DB'     => 'Problem with search terms. Please edit your search and try again',
-	'UCP_PMSEARCH_ERR_SPHINX' => 'Problem with search engine',
+	'UCP_PMSEARCH_ERR_CONN'    => 'Problem connecting to search engine',
+	'UCP_PMSEARCH_ERR_DB'      => 'Problem processing search query',
+	'UCP_PMSEARCH_ERR_UNKNOWN' => 'Unknown error in search',
+	'UCP_PMSEARCH_ERR_GENERIC' => 'Search is not available at this time',
+	'UCP_PMSEARCH_ERR_QUERY'   => 'Invalid search query',
 ]);

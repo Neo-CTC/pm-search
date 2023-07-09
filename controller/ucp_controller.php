@@ -10,11 +10,8 @@
 
 namespace crosstimecafe\pmsearch\controller;
 
-use Foolz\SphinxQL\Drivers\Mysqli\Connection;
-use Foolz\SphinxQL\Exception\ConnectionException;
-use Foolz\SphinxQL\Exception\DatabaseException;
-use Foolz\SphinxQL\Exception\SphinxQLException;
-use Foolz\SphinxQL\SphinxQL;
+use crosstimecafe\pmsearch\core\mysql;
+use crosstimecafe\pmsearch\core\sphinx;
 
 use phpbb\config\config;
 use phpbb\db\driver\driver_interface;
@@ -23,6 +20,7 @@ use phpbb\pagination;
 use phpbb\request\request;
 use phpbb\template\template;
 use phpbb\user;
+use phpbb\auth\auth;
 
 /**
  * PM Search UCP controller.
@@ -36,13 +34,12 @@ class ucp_controller
 	protected $user;
 	protected $pagination;
 	protected $config;
+	protected $auth;
 
 	protected $u_action;
 	protected $uid;
 	protected $root;
 	protected $ext;
-
-	private $sphinx_id;
 
 	/**
 	 * Constructor.
@@ -52,8 +49,9 @@ class ucp_controller
 	 * @param \phpbb\request\request            $request  Request object
 	 * @param \phpbb\template\template          $template Template object
 	 * @param \phpbb\user                       $user     User object
+	 * @param \phpbb\auth\auth                  $auth
 	 */
-	public function __construct(driver_interface $db, language $language, request $request, template $template, user $user, pagination $page, config $conf)
+	public function __construct(driver_interface $db, language $language, request $request, template $template, user $user, pagination $page, config $conf, auth $auth)
 	{
 		$this->db         = $db;
 		$this->language   = $language;
@@ -63,6 +61,7 @@ class ucp_controller
 		$this->uid        = $user->id();
 		$this->pagination = $page;
 		$this->config     = $conf;
+		$this->auth       = $auth;
 
 		global $phpbb_root_path, $phpEx;
 		$this->root = $phpbb_root_path;
@@ -70,8 +69,6 @@ class ucp_controller
 
 		// Need to borrow a few functions from phpbb
 		include($this->root . 'includes/functions_privmsgs.' . $this->ext);
-
-		$this->sphinx_id = 'index_phpbb_' . $this->config['fulltext_sphinx_id'] . '_private_messages';
 	}
 
 	public function display_messages()
@@ -105,6 +102,15 @@ class ucp_controller
 		 */
 
 
+		/** @var string $keywords */
+		/** @var string $from */
+		/** @var string $sent */
+		/** @var int[] $folders */
+		/** @var string $search_field */
+		/** @var string $order */
+		/** @var string $direction */
+		/** @var int $start */
+
 		$keywords     = $this->request->variable('keywords', '', true);
 		$from         = $this->request->variable('from', '', true);
 		$sent         = $this->request->variable('sent', '', true);
@@ -133,6 +139,7 @@ class ucp_controller
 		}
 
 		// Decode quotes
+		/** @var string $keywords */
 		$keywords = str_replace('&quot;', '"', $keywords);
 
 		// Split from/sent field into an id array if needed
@@ -148,7 +155,6 @@ class ucp_controller
 		}
 
 		// Odd setup to make folder searching work with the default folders
-		$folder_ids      = '';
 		$folder_id_array = [];
 		if ($folders)
 		{
@@ -156,22 +162,21 @@ class ucp_controller
 			{
 				// Because everyone has the same folder ids for Inbox, Sent, and Outbox, we add `<user id>_` to the start of all
 				// folders. This allows us to run a full text match for matching folders.
+				// Todo this could probably be replaced with a proper sql where statement
 				$folder_id_array[] = '"' . $this->uid . '_' . $f . '"';
 			}
 			unset($f);
-			// Adds an OR operator for searching
-			$folder_ids = implode('|', $folder_id_array);
 		}
 
 		// Which full text fields to search
 		switch ($search_field)
 		{
 			case 't':
-				$search_field = 'message_text';
-				break;
+				$search_field = ['message_text'];
+			break;
 			case 's':
-				$search_field = 'message_subject';
-				break;
+				$search_field = ['message_subject'];
+			break;
 			case 'b':
 			default:
 				$search_field = ['message_text', 'message_subject'];
@@ -188,186 +193,49 @@ class ucp_controller
 		{
 			case 'a':
 				$direction = 'ASC';
-				break;
+			break;
 			case 'd':
 			default:
 				$direction = 'DESC';
 		}
 
 
-		if ($this->config['pmsearch_engine'] == 'sphinx')
+		// Pick a backend
+		switch ($this->config['pmsearch_engine'])
 		{
-			/*
-			 *
-			 * Setup SphinxQL
-			 *
-			 */
-
-
-			$conn = new Connection();
-			// Todo get host/port from config
-			$conn->setParams(['host' => $this->config['pmsearch_host'], 'port' => $this->config['pmsearch_port']]);
-
-			$search = new SphinxQL($conn);
-			$search->select('id');
-			$search->from($this->sphinx_id);
-			$search->where('user_id', $this->uid);
-
-			if ($keywords)
-			{
-				$search->match($search_field, $keywords, true);
-			}
-			if ($from_id_array)
-			{
-				$search->where('author_id', 'IN', $from_id_array);
-			}
-			if ($sent_id_array)
-			{
-				$search->where('author_id', '=', $this->uid);
-				foreach ($sent_id_array as $id)
-				{
-					$search->where('user_id', $id);
-				}
-			}
-			if ($folder_ids)
-			{
-				$search->match('folder_id', $folder_ids, true);
-			}
-			$search->orderBy($order, $direction);
-			$search->limit($start, $this->config['posts_per_page']);
-
-
-			/*
-			 *
-			 * Process SphinxQL
-			 *
-			 */
-
-
-			$rows        = [];
-			$total_found = 0;
-			try
-			{
-				// Fetch matches
-				$result = $search->execute();
-				$rows   = $result->fetchAllAssoc();
-
-				// Todo also fetch any errors
-				// Fetch the 'total found' variable from metadata
-				$search->query("SHOW META LIKE 'total_found'");
-				$result      = $search->execute();
-				$meta_data   = $result->fetchAllNum();
-				$total_found = $meta_data[0][1];
-
-			}
-			catch (ConnectionException $e)
-			{
-				// Can't connect
-				trigger_error($this->language->lang('UCP_PMSEARCH_ERR_CONN'));
-				// Todo log errors
-			}
-			catch (DatabaseException $e)
-			{
-				// Bad sql or missing table or some other problem
-				trigger_error($this->language->lang('UCP_PMSEARCH_ERR_DB'));
-			}
-			catch (SphinxQLException $e)
-			{
-				// Unknown error
-				trigger_error($this->language->lang('UCP_PMSEARCH_ERR_SPHINX'));
-			}
+			case 'sphinx':
+				$backend = new sphinx($this->uid, $this->config);
+			break;
+			case 'mysql':
+				$backend = new mysql($this->uid, $this->config, $this->db);
+			break;
+			default:
+				trigger_error($this->language->lang('Search is not available at this time'));
 		}
+
+		$result  = $backend->search($search_field, $keywords, $from_id_array, $sent_id_array, $folder_id_array, $order, $direction, $start);
+		if (!$result)
+			if ($this->auth->acl_get('a_'))
+			{
+				trigger_error($this->language->lang($backend->error_msg) . '<br>' . $backend->error_msg_full);
+			}
+			else
+			{
+				trigger_error($this->language->lang('Search is not available at this time'));
+			}
 		else
 		{
-
-
-			/*
-			 *
-			 * Setup MySQL
-			 *
-			 */
-
-			// Make suer we only search messages to the user
-			$where = ['t.user_id = ' . $this->uid];
-
-			// Convert search fields to string
-			$columns = is_array($search_field) ? implode(',', $search_field) : $search_field;
-
-			// Prep keywords for matching
-			if ($keywords)
-			{
-				// Add search operator to each keyword
-				$match = [];
-				foreach (explode(' ', $keywords) as $v)
-				{
-					// Todo test escaping with search operators
-					// Strip search operators
-					$v = str_replace(['~', '@', '(', ')', '<', '>', '\\', '/'], '', $v);
-
-					// After all that striping do we even have any keywords left?
-					if (strlen($v) == 0 )
-					{
-						trigger_error($this->language->lang('UCP_PMSEARCH_ERR_DB'),E_USER_WARNING);
-					}
-
-					// Find unmatched double quotes
-					if (substr_count($v,'"') % 2 == 1)
-					{
-						trigger_error($this->language->lang('UCP_PMSEARCH_ERR_DB'),E_USER_WARNING);
-					}
-
-					// Let phpBB handle any escaping
-					$v = $this->db->sql_escape($v);
-
-					// Add "must include word" search operator
-					$match[] = (substr($v, 0, 1) != '-') ? '+' . $v : $v;
-				}
-				// Boolean mode enables text operators
-				$where[] = 'MATCH(' . $columns . ") AGAINST('" . implode(' ', $match) . "' IN BOOLEAN MODE)";
-			}
-
-			if ($from_id_array)
-			{
-				$where[] = 'p.author_id in (' . implode(',', $from_id_array) . ')';
-			}
-			if ($sent_id_array)
-			{
-				$where[] = 'p.author_id = ' . $this->uid;
-				$where[] = 'MATCH(p.to_address) AGAINST("u_' . implode(' ', $sent_id_array) . '")';
-			}
-			if ($folder_id_array)
-			{
-				$where[] = 't.folder_id in (' . implode(',', $folders) . ')';
-			}
-
-			// Where to string
-			$where = implode(' AND ', $where);
-
-			$sql = 'SELECT DISTINCT p.msg_id id 
-				FROM ' . PRIVMSGS_TABLE . ' p 
-				JOIN ' . PRIVMSGS_TO_TABLE . ' t ON p.msg_id = t.msg_id
-				WHERE ' . $where . '
-				ORDER BY ' . $order . ' ' . $direction . '
-				LIMIT ' . $start . ',' . $this->config['posts_per_page'];
-
-			// Get matching message ids
-			$result = $this->db->sql_query($sql);
-			$rows   = $this->db->sql_fetchrowset($result);
-
-			// Count all the distinct message id's to find total count of rows
-            $sql = 'SELECT COUNT(DISTINCT p.msg_id) as total_count
-                FROM ' . PRIVMSGS_TABLE . ' p 
-				JOIN ' . PRIVMSGS_TO_TABLE . ' t ON p.msg_id = t.msg_id
-				WHERE ' . $where;
-			$result      = $this->db->sql_query($sql);
-			$total_found = $this->db->sql_fetchrow($result)['total_count'];
+			$rows        = $backend->rows;
+			$total_found = $backend->total_found;
 		}
+
 
 		/*
 		 *
 		 * Fetch messages
 		 *
 		 */
+
 
 		if ($rows)
 		{
@@ -376,7 +244,6 @@ class ucp_controller
 			foreach ($rows as $row)
 			{
 				$message_ids[] = $row['id'];
-
 			}
 			$sql_where = $this->db->sql_in_set('p.msg_id', $message_ids);
 
@@ -459,13 +326,13 @@ class ucp_controller
 				{
 					case -2:
 						$folder_name = 'Outbox';
-						break;
+					break;
 					case -1:
 						$folder_name = 'Sent';
-						break;
+					break;
 					case 0:
 						$folder_name = 'Inbox';
-						break;
+					break;
 					default:
 						$this->db->sql_query('SELECT folder_name FROM ' . PRIVMSGS_FOLDER_TABLE . ' WHERE folder_id = ' . $row['folder_id']);
 						$folder_name = $this->db->sql_fetchfield('folder_name');
@@ -514,10 +381,10 @@ class ucp_controller
 		{
 			case 'message_text':
 				$search_field = 't';
-				break;
+			break;
 			case 'message_subject':
 				$search_field = 's';
-				break;
+			break;
 			default:
 				$search_field = 'b';
 		}
@@ -578,7 +445,6 @@ class ucp_controller
 			'SENT'     => $sent,
 			'FOLDER'   => $folder_list,
 		]);
-
 	}
 
 	public function display_options()
