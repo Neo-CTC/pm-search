@@ -25,13 +25,15 @@ class main_listener implements EventSubscriberInterface
 	public static function getSubscribedEvents()
 	{
 		return [
-			'core.ucp_pm_view_folder_get_pm_from_sql' => 'update',
 			// When a user views their new PMs, place_pm_into_folder is called, and we need to reindex the folders for the messages.
-			'core.ucp_pm_view_message_before'         => 'update',
 			// However, there is no event for when a message is moved into a folder. Therefore, we use these two events.
+			'core.ucp_pm_view_folder_get_pm_from_sql' => 'update',
+			'core.ucp_pm_view_message_before'         => 'update',
 
 			'core.submit_pm_after'  => 'submit',
-			'core.delete_pm_before' => 'remove', // I wish there was an event after the deletion but I can work with this
+			'core.delete_pm_before' => 'remove', // I wish there was an event after the deletion, but I can work with this
+
+			'core.ucp_display_module_before' => 'hide_me', // Hide the search page if search is not enabled
 
 			// Todo There is no event to catch a change in folders
 		];
@@ -69,6 +71,22 @@ class main_listener implements EventSubscriberInterface
 			'GROUP_BY'  => 'p.msg_id',
 			'ORDER_BY'  => 'p.msg_id ASC',
 		];
+	}
+
+	public function hide_me($event)
+	{
+		if (!$this->config['pmsearch_enable'])
+		{
+			/** @var \p_master $module */
+			$module = $event['module'];
+			foreach ($module->module_ary as $id => $item_array)
+			{
+				if ($item_array['name'] == '\crosstimecafe\pmsearch\ucp\main_module')
+				{
+					$module->module_ary[$id]['display'] = 0;
+				}
+			}
+		}
 	}
 
 	public function submit($event)

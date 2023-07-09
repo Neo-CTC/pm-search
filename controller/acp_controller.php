@@ -606,7 +606,7 @@ class acp_controller
 				// Creating a fulltext index inside MySQL can take a significant amount of time. All the while, php is waiting until
 				// either MySQL finishes or the script hits the max execution time. Should php timeout, the user will get a message
 				// about a gateway timeout or some other vague error. This may cause the user to believe that the indexing has failed.
-				// We can do better by setting a MySQL client timeout. This is causes php to stop waiting while MySQL does its thing.
+				// We can do better by setting a MySQL client timeout. This causes php to stop waiting while MySQL does its thing.
 
 
 				/*

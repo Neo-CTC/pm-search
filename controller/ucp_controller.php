@@ -287,7 +287,7 @@ class ucp_controller
 			 *
 			 */
 
-
+			// Make suer we only search messages to the user
 			$where = ['t.user_id = ' . $this->uid];
 
 			// Convert search fields to string
@@ -343,11 +343,10 @@ class ucp_controller
 			// Where to string
 			$where = implode(' AND ', $where);
 
-			$sql = 'SELECT  p.msg_id id 
+			$sql = 'SELECT DISTINCT p.msg_id id 
 				FROM ' . PRIVMSGS_TABLE . ' p 
 				JOIN ' . PRIVMSGS_TO_TABLE . ' t ON p.msg_id = t.msg_id
 				WHERE ' . $where . '
-				GROUP BY p.msg_id
 				ORDER BY ' . $order . ' ' . $direction . '
 				LIMIT ' . $start . ',' . $this->config['posts_per_page'];
 

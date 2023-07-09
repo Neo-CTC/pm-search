@@ -16,15 +16,17 @@
 
 <form id="form_settings" method="post" action="{{ U_ACTION }}" data-ajax="true">
 	<fieldset>
-		<legend>{{ lang('GENERAL_SEARCH_SETTINGS') }}</legend>
+		<legend>{{ lang('SEARCH_TYPE') }}</legend>
 		<dl>
 			<dt>
 				<label for="search_type">{{ lang('SEARCH_TYPE') }}{{ lang('COLON') }}</label>
 			</dt>
 			<dd>
 				<select id="search_type" name="search_type" data-togglable-settings="true">
-					<option value="sphinx"{% if search_type == 'sphinx' %} selected{% endif %} data-toggle-setting=".sphinx">Sphinx</option>
-					<option value="mysql"{% if search_type == 'mysql' %} selected{% endif %} data-toggle-setting=".mysql">MySQL</option>
+					<!-- Todo get db type -->
+					<option value="sphinx"{% if search_type == 'sphinx' %} selected{% endif %} data-toggle-setting="#sphinx_settings">Sphinx</option>
+					<option value="mysql"{% if search_type == 'mysql' %} selected{% endif %} data-toggle-setting="#mysql_settings">MySQL</option>
+					<!-- <option value="mysql"{% if search_type == 'postgresql' %} selected{% endif %} data-toggle-setting="#postgresql_settings">PostgreSQL</option> -->
 				</select>
 			</dd>
 		</dl>
@@ -44,8 +46,10 @@
 				</label>
 			</dd>
 		</dl>
-
-		<dl class="sphinx"{% if search_type != 'sphinx' %} style="display: none"{% endif %}>
+	</fieldset>
+	<fieldset id="sphinx_settings">
+		<legend>Sphinx</legend>
+		<dl>
 			<dt>
 				<label for="sphinx_hostname">{{ lang('FULLTEXT_SPHINX_HOST') }}</label>
 				<br/><span>{{ lang('FULLTEXT_SPHINX_HOST_EXPLAIN') }}</span>
@@ -54,7 +58,7 @@
 				<input type="text" placeholder="127.0.0.1" id="sphinx_hostname" name="hostname" value="{{ host }}"/>
 			</dd>
 		</dl>
-		<dl class="sphinx"{% if search_type != 'sphinx' %} style="display: none"{% endif %}>
+		<dl>
 			<dt>
 				<label for="sphinx_port">{{ lang('FULLTEXT_SPHINX_PORT') }}</label>
 				<br/><span>{{ lang('FULLTEXT_SPHINX_PORT_EXPLAIN') }}</span></dt>
@@ -63,6 +67,12 @@
 			</dd>
 		</dl>
 	</fieldset>
+
+	<fieldset id="mysql_settings">
+		<legend>MySQL</legend>
+		No options available at this time
+	</fieldset>
+
 	<fieldset>
 		<legend>{{ lang('ACP_SUBMIT_CHANGES') }}</legend>
 		<p class="submit-buttons">
