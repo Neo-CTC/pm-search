@@ -28,14 +28,18 @@ class main_module
 
 
 		global $phpbb_container;
-		$acp_controller = $phpbb_container->get('crosstimecafe.pmsearch.controller.acp');
-		$language       = $phpbb_container->get('language');
-		$request        = $phpbb_container->get('request');
 
+		/** @var \crosstimecafe\pmsearch\controller\acp_controller $acp_controller */
+		$acp_controller = $phpbb_container->get('crosstimecafe.pmsearch.controller.acp');
+
+		/** @var \phpbb\language\language $language */
+		$language = $phpbb_container->get('language');
+		$language->add_lang('acp/search');
+
+		/** @var \phpbb\request\request $request */
+		$request = $phpbb_container->get('request');
 		$action = $request->variable('action', '');
 		$engine = $request->variable('engine', '');
-
-		$language->add_lang('acp/search');
 
 
 		/*
@@ -57,13 +61,17 @@ class main_module
 				// Start search reindex
 				case 'delete':
 				case 'create':
-					if (!$engine)
+				// Todo reload page once finished
+
+					// Invalid engine, stop here
+					if (!$engine || !in_array($engine, ['sphinx', 'mysql']))
 					{
-						trigger_error($language->lang('ACP_PMSEARCH_PROGRAM_ERROR'), E_USER_WARNING);
+						trigger_error($language->lang('ERROR'), E_USER_WARNING);
 					}
+
 					if (confirm_box(true))
 					{
-						$acp_controller->reindex();
+						$acp_controller->maintenance($action, $engine);
 					}
 					else
 					{

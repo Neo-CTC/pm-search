@@ -36,42 +36,52 @@ if (empty($lang) || !is_array($lang))
 
 $lang = array_merge($lang, [
 	// ACP module
-	'ACP_PMSEARCH_TITLE'            => 'PM Search',
-	'ACP_PMSEARCH_MODE_SETTINGS'    => 'Settings',
-	'ACP_PMSEARCH_MODE_STATUS'      => 'Status',
+	'ACP_PMSEARCH_TITLE'             => 'PM Search',
+	'ACP_PMSEARCH_MODE_SETTINGS'     => 'Settings',
+	'ACP_PMSEARCH_MODE_STATUS'       => 'Status',
 
 	// Index status
-	'ACP_PMSEARCH_STATUS'           => 'Status',
-	'ACP_PMSEARCH_READY'            => 'Ready for use',
-	'ACP_PMSEARCH_PROCESSING'       => 'Indexing in process',
-	'ACP_PMSEARCH_NO_INDEX'         => 'Index missing',
-	'ACP_PMSEARCH_NO_INDEX_CREATE'  => 'Index missing. Please create index inside Sphinx configuration file',
-	'ACP_PMSEARCH_INDEX_EMPTY'      => 'Index empty',
-	'ACP_PMSEARCH_INCOMPLETE'       => 'Indexing incomplete',
-	'ACP_PMSEARCH_IN_PROGRESS'      => 'MySQL is creating the index in the background. This may take some time. Check index status in a few minutes',
+	'ACP_PMSEARCH_STATUS'            => 'Status',
+	'ACP_PMSEARCH_READY'             => 'Ready for use',
+	'ACP_PMSEARCH_PROCESSING'        => 'Indexing in process',
+	'ACP_PMSEARCH_NO_INDEX'          => 'Index missing',
+	'ACP_PMSEARCH_NO_INDEX_CREATE'   => 'Index missing, create index inside configuration file',
+	'ACP_PMSEARCH_INDEX_EMPTY'       => 'Index empty',
+	'ACP_PMSEARCH_INCOMPLETE'        => 'Indexing incomplete',
+
+	// MySQL index status
+	'ACP_PMSEARCH_MYSQL_IN_PROGRESS' => 'MySQL is working in the background. Check status in a few minutes',
 
 	// Sphinx index status
-	'ACP_PMSEARCH_VERSION'          => 'Version',
-	'ACP_PMSEARCH_TOTAL_MESSAGES'   => 'Total messages',
-	'ACP_PMSEARCH_INDEX_BYTES'      => 'Disk usage',
-	'ACP_PMSEARCH_RAM_BYTES'        => 'RAM usage',
+	'ACP_PMSEARCH_VERSION'           => 'Version',
+	'ACP_PMSEARCH_TOTAL_MESSAGES'    => 'Total messages',
+	'ACP_PMSEARCH_INDEX_BYTES'       => 'Disk usage',
+	'ACP_PMSEARCH_RAM_BYTES'         => 'RAM usage',
 
 	// Maintenance commands
-	'ACP_PMSEARCH_INDEX_COMMANDS'   => 'index maintenance',
-	'ACP_PMSEARCH_REINDEX'          => 'Rebuild search index',
-	'ACP_PMSEARCH_ACTION_DROP'      => 'Delete search index',
-	'ACP_PMSEARCH_CONFIG'           => 'Config entry',
-	'ACP_PMSEARCH_CONFIG_EXPLAIN'   => 'Add this entry to your sphinx.config',
+	'ACP_PMSEARCH_INDEX_COMMANDS'    => 'index maintenance',
+	'ACP_PMSEARCH_REINDEX'           => 'Rebuild search index',
+	'ACP_PMSEARCH_ACTION_DROP'       => 'Delete search index',
+	'ACP_PMSEARCH_CONFIG'            => 'Config entry',
+	'ACP_PMSEARCH_CONFIG_EXPLAIN'    => 'Add this entry to your sphinx.config',
 
 	// Maintenance responses
-	'ACP_PMSEARCH_INDEX_DONE'       => 'Indexing complete',
-	'ACP_PMSEARCH_DROP_DONE'        => 'Deletion complete',
-	'ACP_PMSEARCH_INDEX_STATS'      => 'Time: %s seconds<br />Memory usage: %s MiB',
-	'ACP_PMSEARCH_ACTION_NONE'      => 'Unknown action',
+	'ACP_PMSEARCH_INDEX_DONE'        => 'Indexing complete',
+	'ACP_PMSEARCH_DROP_DONE'         => 'Deletion complete',
+	'ACP_PMSEARCH_INDEX_STATS'       => 'Time: %s seconds<br />Memory usage: %s MiB',
+	'ACP_PMSEARCH_ACTION_NONE'       => 'Unknown action',
 
 	// Error messages
-	'ACP_PMSEARCH_CONNECTION_ERROR' => 'Unable to connect',
-	'ACP_PMSEARCH_PROGRAM_ERROR'    => 'Error with search backend',
-	'ACP_PMSEARCH_MISSING_TABLE'    => 'Private message search index missing and could not be created',
-	'ACP_PMSEARCH_UNKNOWN_VERSION'  => 'Unknown Sphinx or Manticore version',
+	'ACP_PMSEARCH_ERR_CONN'          => 'Search database connection error',
+	'ACP_PMSEARCH_ERR_DB'            => 'Error while executing database query',
+	'ACP_PMSEARCH_ERR_UNKNOWN'       => 'Unknown error in search database',
+	'ACP_PMSEARCH_MISSING_TABLE'     => 'Search index missing',
+	'ACP_UNSUPPORTED_ENGINE'         => 'Unsupported search engine',
+
+	// Sphinx error messages
+	'ACP_PMSEARCH_UNKNOWN_VERSION'   => 'Unknown or unsupported Sphinx/Manticore version',
+	'ACP_PMSEARCH_UNSUPPORTED_INDEX' => 'Index type [%s] is unsupported',
+
+	// MySQL error messages
+	'ACP_PMSEARCH_INDEX_CREATE_ERR_MYSQL' => 'Unknown error when creating search indexes for MySQL'
 ]);

@@ -10,8 +10,8 @@
 
 namespace crosstimecafe\pmsearch\controller;
 
-use crosstimecafe\pmsearch\core\mysql;
-use crosstimecafe\pmsearch\core\sphinx;
+use crosstimecafe\pmsearch\core\mysqlSearch;
+use crosstimecafe\pmsearch\core\sphinxSearch;
 
 use phpbb\config\config;
 use phpbb\db\driver\driver_interface;
@@ -204,18 +204,20 @@ class ucp_controller
 		switch ($this->config['pmsearch_engine'])
 		{
 			case 'sphinx':
-				$backend = new sphinx($this->uid, $this->config);
+				$backend = new sphinxSearch($this->uid, $this->config, $this->language, $this->db);
 			break;
 			case 'mysql':
-				$backend = new mysql($this->uid, $this->config, $this->db);
+				$backend = new mysqlSearch($this->uid, $this->config, $this->language, $this->db);
 			break;
 			default:
 				trigger_error($this->language->lang('Search is not available at this time'));
+				return;
 		}
 
 		$result  = $backend->search($search_field, $keywords, $from_id_array, $sent_id_array, $folder_id_array, $order, $direction, $start);
 		if (!$result)
-			if ($this->auth->acl_get('a_'))
+		{
+			if ($this->auth->acl_get('a_') && $backend->error_msg)
 			{
 				trigger_error($this->language->lang($backend->error_msg) . '<br>' . $backend->error_msg_full);
 			}
@@ -223,6 +225,8 @@ class ucp_controller
 			{
 				trigger_error($this->language->lang('Search is not available at this time'));
 			}
+			return;
+		}
 		else
 		{
 			$rows        = $backend->rows;
