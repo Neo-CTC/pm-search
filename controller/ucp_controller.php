@@ -69,6 +69,12 @@ class ucp_controller
 
 		// Need to borrow a few functions from phpbb
 		include($this->root . 'includes/functions_privmsgs.' . $this->ext);
+
+		// Wait a minute, search is disabled. How did you get here?
+		if (!$this->config['pmsearch_enable'])
+		{
+			trigger_error($this->language->lang('UCP_PMSEARCH_ERR_GENERIC'));
+		}
 	}
 
 	public function display_messages()
@@ -210,11 +216,11 @@ class ucp_controller
 				$backend = new mysqlSearch($this->uid, $this->config, $this->language, $this->db);
 			break;
 			default:
-				trigger_error($this->language->lang('Search is not available at this time'));
+				trigger_error($this->language->lang('UCP_PMSEARCH_ERR_GENERIC'));
 				return;
 		}
 
-		$result  = $backend->search($search_field, $keywords, $from_id_array, $sent_id_array, $folder_id_array, $order, $direction, $start);
+		$result = $backend->search($search_field, $keywords, $from_id_array, $sent_id_array, $folder_id_array, $order, $direction, $start);
 		if (!$result)
 		{
 			if ($this->auth->acl_get('a_') && $backend->error_msg)
@@ -223,7 +229,7 @@ class ucp_controller
 			}
 			else
 			{
-				trigger_error($this->language->lang('Search is not available at this time'));
+				trigger_error($this->language->lang('UCP_PMSEARCH_ERR_GENERIC'));
 			}
 			return;
 		}

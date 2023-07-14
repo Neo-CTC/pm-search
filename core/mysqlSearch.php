@@ -56,11 +56,7 @@ class mysqlSearch implements pmsearch_base
 			}
 			else
 			{
-				// Fetch list of all indexes
-				$i      = [];
-				$result = $this->db->sql_query('SHOW INDEX FROM ' . PRIVMSGS_TABLE . ' WHERE Key_name LIKE "pmsearch_%"');
-				$rows   = $this->db->sql_fetchrowset();
-				if (count($rows) == 5)
+				if ($this->index_check())
 				{
 					$template['MYSQL_STATUS'] = $this->language->lang('ACP_PMSEARCH_READY');
 				}
@@ -174,7 +170,7 @@ class mysqlSearch implements pmsearch_base
 	 */
 	public function update_entry($id)
 	{
-		// TODO: Implement update_entry() method.
+		// Not required for mysql
 	}
 
 	/**
@@ -182,6 +178,10 @@ class mysqlSearch implements pmsearch_base
 	 */
 	public function search(array $indexes, string $keywords, array $from, array $to, array $folders, string $order, string $direction, int $offset)
 	{
+		if (!$this->config['pmsearch_enable'] || !$this->index_check())
+		{
+			return false;
+		}
 		// Make suer we only search messages to the user
 		$where = ['t.user_id = ' . $this->uid];
 
@@ -300,5 +300,20 @@ class mysqlSearch implements pmsearch_base
 			}
 		}
 		return true;
+	}
+
+	private function index_check(): bool
+	{
+		// Fetch list of all indexes
+		$this->db->sql_query('SHOW INDEX FROM ' . PRIVMSGS_TABLE . ' WHERE Key_name LIKE "pmsearch_%"');
+		$rows   = $this->db->sql_fetchrowset();
+		if (count($rows) == 5)
+		{
+			return true;
+		}
+		else
+		{
+			return false;
+		}
 	}
 }

@@ -61,8 +61,6 @@ class main_module
 				// Start search reindex
 				case 'delete':
 				case 'create':
-				// Todo reload page once finished
-
 					// Invalid engine, stop here
 					if (!$engine || !in_array($engine, ['sphinx', 'mysql']))
 					{
@@ -71,6 +69,18 @@ class main_module
 
 					if (confirm_box(true))
 					{
+						// Todo reload page once finished
+						// if ($request->is_ajax())
+						// {
+						// 	$json_response = new \phpbb\json_response;
+						// 	$json_response->send(array(
+						// 		'MESSAGE_TITLE'	=> 'Title',
+						// 		'MESSAGE_TEXT'	=> 'Text',
+						// 		'REFRESH_DATA'	=> array(
+						// 			'time'	=> 3
+						// 		)
+						// 	));
+						// }
 						$acp_controller->maintenance($action, $engine);
 					}
 					else
