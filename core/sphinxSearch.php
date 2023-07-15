@@ -418,6 +418,19 @@ class sphinxSearch implements pmsearch_base
 
 		if ($folders)
 		{
+			// Tack on user id to each folder to limit it to current user.
+			foreach ($folders as &$f)
+			{
+				// Because everyone has the same folder ids for Inbox, Sent, and Outbox, we add `<user id>_`
+				// to the start of all folders. This allows us to run a full text match for matching folders.
+				// Todo this could probably be replaced with a better logic/sql statement?? Try MVA big numbers
+
+				// Yes the `"` are required
+				$f = '"' . $this->uid . '_' . $f . '"';
+			}
+			unset($f);
+
+			// Combine folder array into a string with an `OR` search function
 			$search->match('folder_id', implode('|', $folders), true);
 		}
 

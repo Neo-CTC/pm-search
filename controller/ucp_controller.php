@@ -93,13 +93,8 @@ class ucp_controller
 		// Todo add try/catch
 		// Todo harden input
 		// Todo get minimum characters
-		// Todo need to strip bbcode from indexer
 		// Todo max return limits
 		// Todo pagination jump box not working
-		// Todo author and keyword not working together?
-		// Todo allow searching multiple authors/sent to
-		// Todo enable/disable search
-
 
 		/*
 		 *
@@ -134,7 +129,6 @@ class ucp_controller
 		 */
 
 
-		// Todo test bcc. make sure you can't search for users in the bcc
 		// Todo remove explain from 'from' & 'to' fields, replace with find member link
 		// Todo limit length of fields
 
@@ -158,20 +152,6 @@ class ucp_controller
 		if ($sent)
 		{
 			$sent_id_array = $this->get_ids($sent);
-		}
-
-		// Odd setup to make folder searching work with the default folders
-		$folder_id_array = [];
-		if ($folders)
-		{
-			foreach ($folders as $f)
-			{
-				// Because everyone has the same folder ids for Inbox, Sent, and Outbox, we add `<user id>_` to the start of all
-				// folders. This allows us to run a full text match for matching folders.
-				// Todo this could probably be replaced with a proper sql where statement
-				$folder_id_array[] = '"' . $this->uid . '_' . $f . '"';
-			}
-			unset($f);
 		}
 
 		// Which full text fields to search
@@ -220,7 +200,7 @@ class ucp_controller
 				return;
 		}
 
-		$result = $backend->search($search_field, $keywords, $from_id_array, $sent_id_array, $folder_id_array, $order, $direction, $start);
+		$result = $backend->search($search_field, $keywords, $from_id_array, $sent_id_array, $folders, $order, $direction, $start);
 		if (!$result)
 		{
 			if ($this->auth->acl_get('a_') && $backend->error_msg)
