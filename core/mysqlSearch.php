@@ -110,12 +110,31 @@ class mysqlSearch implements pmsearch_base
 		}
 		mysqli_real_connect($id, $dbhost, $dbuser, $dbpasswd, $dbname, $port, $socket);
 
-		// Add the things
+		// Update collation to a case-insensitive type
+		// First fetch the columns to change
+		$result = $this->db->sql_query('SHOW FULL COLUMNS FROM ' . PRIVMSGS_TABLE . ' WHERE Field IN ("message_text","message_subject") AND Collation != "utf8mb4_unicode_ci"');
+		foreach($this->db->sql_fetchrowset($result) as $row)
+		{
+			// Change column collation to utf8mb4-unicode-ci
+			$result = mysqli_query($id, 'ALTER TABLE ' . PRIVMSGS_TABLE . ' MODIFY '. $row['Field'] . ' ' . $row['Type'] . ' CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+			if ($result === false)
+			{
+				$err_id = mysqli_errno($id);
+				// Client timeout
+				if ($err_id ==  2006)
+				{
+					trigger_error($this->language->lang('ACP_PMSEARCH_IN_PROGRESS'));
+				}
+			}
+		}
+
+		// Index the things
 		$sql = "ALTER TABLE phpbb_privmsgs
 	ADD FULLTEXT IF NOT EXISTS pmsearch_b (message_subject, message_text),
     ADD FULLTEXT IF NOT EXISTS pmsearch_s (message_subject),
     ADD FULLTEXT IF NOT EXISTS pmsearch_t (message_text),
-    ADD FULLTEXT IF NOT EXISTS pmsearch_ta(to_address)";
+    ADD FULLTEXT IF NOT EXISTS pmsearch_ta(to_address),
+    ADD FULLTEXT IF NOT EXISTS pmsearch_ba(bcc_address)";
 
 		// This will either finish without incident, or if there is a lot of messages
 		//  to index, the connection will time out.
@@ -227,16 +246,39 @@ class mysqlSearch implements pmsearch_base
 		// Search for messages sent from these authors
 		if ($from)
 		{
-			$where[] = 'p.author_id in (' . implode(',', $from) . ')';
+			if (count($from) == 1)
+			{
+				$where[] = 'p.author_id = ' . $from[0];
+			}
+			else
+			{
+				$where[] = 'p.author_id IN (' . implode(',', $from) . ')';
+			}
 		}
 
 		// Search for messages sent to these recipients
 		if ($to)
 		{
-			$where[] = 'p.author_id = ' . $this->uid;
-			$where[] = 'MATCH(p.to_address) AGAINST("u_' . implode(' ', $to) . '")';
-		}
+			/*
+			 * To/Bcc addresses are stored as strings of u_<user id>.
+			 * Add 'u_' to each address to use full text matching to search inside the strings.
+			 */
 
+			// Limit messages to ones the user has sent
+			$where[] = 'p.author_id = ' . $this->uid;
+
+			if (count($to) == 1)
+			{
+				// Single address checking in both to and bcc
+				$where[] = '(MATCH(p.to_address) AGAINST("u_' .  $to[0] . '") OR MATCH(p.bcc_address) AGAINST("u_' .  $to[0] . '"))';
+			}
+			else
+			{
+				// Multi address matching
+				$addresses = 'u_' . implode(' u_', $to);
+				$where[] = '(MATCH(p.to_address) AGAINST("' . $addresses . '") OR MATCH(p.bcc_address) AGAINST("' .  $addresses . '"))';
+			}
+		}
 
 		if ($folders)
 		{
@@ -307,7 +349,7 @@ class mysqlSearch implements pmsearch_base
 		// Fetch list of all indexes
 		$this->db->sql_query('SHOW INDEX FROM ' . PRIVMSGS_TABLE . ' WHERE Key_name LIKE "pmsearch_%"');
 		$rows   = $this->db->sql_fetchrowset();
-		if (count($rows) == 5)
+		if (count($rows) == 6)
 		{
 			return true;
 		}
