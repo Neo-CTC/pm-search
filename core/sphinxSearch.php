@@ -7,6 +7,7 @@ use Foolz\SphinxQL\Exception\ConnectionException;
 use Foolz\SphinxQL\Exception\DatabaseException;
 use Foolz\SphinxQL\Exception\SphinxQLException;
 use Foolz\SphinxQL\SphinxQL;
+use mysqli;
 use phpbb\config\config;
 use phpbb\db\driver\driver_interface;
 use phpbb\language\language;
@@ -27,6 +28,12 @@ class sphinxSearch implements pmsearch_base
 	protected $db;
 	protected $sphinx_id;
 
+	/**
+	 * @param int                               $uid
+	 * @param \phpbb\config\config              $config
+	 * @param \phpbb\language\language          $lang
+	 * @param \phpbb\db\driver\driver_interface $db
+	 */
 	public function __construct(int $uid, config $config, language $lang, driver_interface $db)
 	{
 		$this->uid      = $uid;
@@ -99,31 +106,25 @@ class sphinxSearch implements pmsearch_base
 		{
 			$template['SPHINX_STATUS'] = $this->language->lang('ACP_PMSEARCH_READY');
 
-			// TODO get stats for Sphinx
-			// Extra stats for Manticore
-			if ($version[0] == 'm')
-			{
-				$this->sphinxql->query('SHOW INDEX ' . $this->sphinx_id . ' STATUS');
-				$result = $this->query_execute(false);
+			$this->sphinxql->query('SHOW INDEX ' . $this->sphinx_id . ' STATUS');
+			$result = $this->query_execute(false);
 
-				while ($row = $result->fetchAssoc())
+			while ($row = $result->fetchAssoc())
+			{
+				switch ($row['Variable_name'])
 				{
-					switch ($row['Variable_name'])
-					{
-						// Todo get more variables
-						case 'indexed_documents':
-							$template['TOTAL_MESSAGES'] = $row['Value'];
-							break;
-						case 'disk_bytes':
-							$template['INDEX_BYTES'] = round($row['Value'] / 1048576, 1) . ' MiB';
-							break;
-						case 'ram_bytes':
-							$template['RAM_BYTES'] = round($row['Value'] / 1048576, 1) . ' MiB';
-							break;
-					}
+					case 'indexed_documents':
+						$template['TOTAL_MESSAGES'] = $row['Value'];
+					break;
+					case 'disk_bytes':
+						$template['INDEX_BYTES'] = round($row['Value'] / 1048576, 1) . ' MiB';
+					break;
+					case 'ram_bytes':
+						$template['RAM_BYTES'] = round($row['Value'] / 1048576, 1) . ' MiB';
+					break;
 				}
-				$template['SPHINX_ID'] = $this->sphinx_id;
 			}
+			$template['SPHINX_ID'] = $this->sphinx_id;
 		}
 		// No index, but ready to be created
 		else if ($version[0] == 'm' || ($version[0] == 's' && $version[1] == 3))
@@ -184,15 +185,15 @@ class sphinxSearch implements pmsearch_base
 		}
 
 		// Still no version? Might be an ancient version of Sphinx
-		// $my = @new mysqli($this->config['pmsearch_host'], '', '', '', $this->config['pmsearch_port']);
-		// if ($my)
-		// {
-		// 	$v = $my->get_server_info();
-		// 	if (preg_match('/^([\d.]+)/', $v, $m))
-		// 	{
-		// 		return array_merge(['s'], explode('.', $m[1]));
-		// 	}
-		// }
+		$my = @new mysqli($this->config['pmsearch_host'], '', '', '', $this->config['pmsearch_port']);
+		if ($my)
+		{
+			$v = $my->get_server_info();
+			if (preg_match('/^([\d.]+)/', $v, $m))
+			{
+				return array_merge(['s'], explode('.', $m[1]));
+			}
+		}
 
 		// Unknown version??
 		return false;
@@ -349,7 +350,11 @@ class sphinxSearch implements pmsearch_base
 		}
 		else
 		{
-			$this->error_handler('ACP_PMSEARCH_UNKNOWN_VERSION', '');
+			// Old Sphinx version, user needs to create the index table
+			if (!$this->index_ready())
+			{
+				$this->error_handler('ACP_PMSEARCH_NO_INDEX_CREATE', '');
+			}
 		}
 		$this->query_execute();
 	}
@@ -359,7 +364,26 @@ class sphinxSearch implements pmsearch_base
 	 */
 	public function delete_index()
 	{
-		$this->sphinxql->query('DROP TABLE IF EXISTS ' . $this->sphinx_id);
+		$version = $this->get_version();
+		if (!$version)
+		{
+			$this->error_handler('CONNECTION_FAILED');
+		}
+
+		if ($version[0] == 'm' || $version[1] == 3)
+		{
+			$this->sphinxql->query('DROP TABLE IF EXISTS ' . $this->sphinx_id);
+		}
+		else
+		{
+			if (!$this->index_ready())
+			{
+				$this->error_handler('ACP_PMSEARCH_NO_INDEX_CREATE');
+			}
+			// Sphinx 2.x, we can't drop the table, but we can delete all the data in it
+			$this->sphinxql->query('TRUNCATE RTINDEX ' . $this->sphinx_id);
+		}
+
 		$this->query_execute();
 	}
 
