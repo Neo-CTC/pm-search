@@ -34,7 +34,7 @@ interface pmsearch_base
 	public function create_index();
 
 	/**
-	 * Complete index refresh
+	 * Drop and recreate index
 	 *
 	 * @return bool
 	 */
@@ -58,22 +58,17 @@ interface pmsearch_base
 	 * Search index for matching terms
 	 * Returns array of matching message ids
 	 *
+	 * @param int      $uid      User ID
 	 * @param string[] $indexes  Indexes to search
-	 * @param string          $keywords Terms to match
-	 * @param int[]           $from     Search for authors
-	 * @param int[]           $to       Search for recipients
-	 * @param string[]        $folders
-	 * @param string          $order
-	 * @param string          $direction
-	 * @param int             $offset
-	 * @return array
-	 */
-	public function search(array $indexes, string $keywords, array $from, array $to, array $folders, string $order, string $direction, int $offset);
-
-	/**
-	 * Run generic query on backend
+	 * @param string   $keywords Terms to match
+	 * @param int[]    $from     Search for authors
+	 * @param int[]    $to       Search for recipients
+	 * @param string[] $folders
+	 * @param string   $order
+	 * @param string   $direction
+	 * @param int      $offset
 	 *
-	 * @return array
+	 * @return false|array
 	 */
-	public function query($query);
+	public function search(int $uid, array $indexes, string $keywords, array $from, array $to, array $folders, string $order, string $direction, int $offset);
 }

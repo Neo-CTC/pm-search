@@ -4,33 +4,24 @@ namespace crosstimecafe\pmsearch\core;
 
 use phpbb\config\config;
 use phpbb\db\driver\driver_interface;
-use phpbb\language\language;
 
 class mysqlSearch implements pmsearch_base
 {
-	protected $uid;
-	protected $config;
-	protected $language;
-	protected $db;
+	private $config;
+	private $db;
 
-	protected $mysql_indexes;
-	public $rows;
+	public $message_ids;
 	public $total_found;
 	public $error_msg;
 	public $error_msg_full;
 
-	public function __construct(int $uid, config $config, language $lang, driver_interface $db)
+	public function __construct(config $config, driver_interface $db)
 	{
-		$this->uid      = $uid;
 		$this->config   = $config;
-		$this->language = $lang;
 		$this->db       = $db;
 
-		// List of MySQL indexes needed for searching
-		$this->mysql_indexes = ['message_subject', 'message_text', 'message_content', 'to_address'];
-
-		$this->rows           = [];
-		$this->total_found    = null;
+		$this->message_ids = [];
+		$this->total_found = null;
 		$this->error_msg      = '';
 		$this->error_msg_full = '';
 	}
@@ -40,7 +31,7 @@ class mysqlSearch implements pmsearch_base
 	 */
 	public function ready()
 	{
-		// TODO: Implement ready() method.
+		return $this->status_check() && $this->index_check();
 	}
 
 	/**
@@ -50,20 +41,24 @@ class mysqlSearch implements pmsearch_base
 	{
 		{
 			$template = [];
-			if (!$this->status_check())
+			$status = $this->status_check();
+
+			// Something is wrong
+			if (!$status)
 			{
-				$template['MYSQL_STATUS'] = $this->language->lang('ACP_PMSEARCH_PROCESSING');
+				$template['MYSQL_STATUS'] = $this->error_msg;
+				return $template;
 			}
+
+			// The indexes are ready
+			if ($this->index_check())
+			{
+				$template['MYSQL_STATUS'] = 'ACP_PMSEARCH_READY';
+			}
+			// The indexes are incomplete?
 			else
 			{
-				if ($this->index_check())
-				{
-					$template['MYSQL_STATUS'] = $this->language->lang('ACP_PMSEARCH_READY');
-				}
-				else
-				{
-					$template['MYSQL_STATUS'] = $this->language->lang('ACP_PMSEARCH_NO_INDEX');
-				}
+				$template['MYSQL_STATUS'] = 'ACP_PMSEARCH_NO_INDEX';
 			}
 			return $template;
 		}
@@ -77,23 +72,26 @@ class mysqlSearch implements pmsearch_base
 		// Quick check to avoid altering the table while altering the table
 		if (!$this->status_check())
 		{
-			trigger_error($this->language->lang('ACP_PMSEARCH_MYSQL_IN_PROGRESS'));
+			return false;
 		}
-		/* Oh okay, so...
-		* Creating a fulltext index inside MySQL can take a significant amount of time. All the while, php is waiting until
-		* either MySQL finishes or the script hits the max execution time. This is of course a bad thing and the end user
-		 * thinks we've failed. So how to we overcome this conundrum? By ignoring phpBB's db interface and handling it ourselves.
-		 * By setting a read timeout for MySQL queries we can force php to move on even if MySQL is still working in the
-		 * background. The ALTER TABLE command doesn't care if we wait for or not.
-		*/
 
+		/*
+		 * Okay, so...
+		 * Creating a fulltext index inside MySQL can take a significant amount of time. All the while, php is waiting until
+		 * either MySQL finishes or the script hits the max execution time. This is of course a bad thing and the end user
+		 * thinks we've failed. By ignoring phpBB's db interface and handling it ourselves we can set a read timeout for
+		 * MySQL queries. Once the connection times out, the php script will continue while MySQL continues to work in the
+		 * background. The ALTER TABLE command doesn't care if we wait for it to finish or not.
+		 */
+
+		// Todo get these from config
 		global $dbhost, $dbuser, $dbpasswd, $dbname, $dbport;
 		$id = mysqli_init();
 
 		// Limit time spent waiting for a query to finish executing
 		mysqli_options($id, MYSQLI_OPT_READ_TIMEOUT, 5);
 
-		// Copy port/socket handling from phpbb mysqli driver
+		// Copy port/socket handling code from phpbb mysqli driver
 		$port   = (!$dbport) ? null : $dbport;
 		$socket = null;
 		if ($port)
@@ -116,14 +114,22 @@ class mysqlSearch implements pmsearch_base
 		foreach($this->db->sql_fetchrowset($result) as $row)
 		{
 			// Change column collation to utf8mb4-unicode-ci
-			$result = mysqli_query($id, 'ALTER TABLE ' . PRIVMSGS_TABLE . ' MODIFY '. $row['Field'] . ' ' . $row['Type'] . ' CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+			$result = @mysqli_query($id, 'ALTER TABLE ' . PRIVMSGS_TABLE . ' MODIFY '. $row['Field'] . ' ' . $row['Type'] . ' CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
 			if ($result === false)
 			{
 				$err_id = mysqli_errno($id);
-				// Client timeout
+				// "MySQL server has gone away", aka client timeout
 				if ($err_id ==  2006)
 				{
-					trigger_error($this->language->lang('ACP_PMSEARCH_IN_PROGRESS'));
+					$this->error_msg = 'ACP_PMSEARCH_IN_PROGRESS';
+					return false;
+				}
+				// Some other error
+				else if($err_id)
+				{
+					$this->error_msg = 'GENERAL_ERROR';
+					$this->error_msg_full = mysqli_errno($id) . ": " . mysqli_error($id);
+					return false;
 				}
 			}
 		}
@@ -143,21 +149,21 @@ class mysqlSearch implements pmsearch_base
 		if ($result === false)
 		{
 			$err_id = mysqli_errno($id);
-			// Client error 2006 - CR_SERVER_GONE_ERROR
-			// We are expecting this to happen
-			if ($err_id == 2006)
+			// "MySQL server has gone away", aka client timeout
+			if ($err_id ==  2006)
 			{
-				trigger_error($this->language->lang('ACP_PMSEARCH_IN_PROGRESS'));
+				$this->error_msg = 'ACP_PMSEARCH_IN_PROGRESS';
+				return false;
 			}
-			else
+			// Some other error
+			else if($err_id)
 			{
-				// Well, huh. That didn't work
-				$msg = $this->language->lang('ACP_PMSEARCH_INDEX_CREATE_ERR_MYSQL') . '<br><pre>' .
-					mysqli_errno($id) . '\n' . mysqli_error($id) . '</pre>';
-				trigger_error($msg);
+				$this->error_msg = 'GENERAL_ERROR';
+				$this->error_msg_full = mysqli_errno($id) . ": " . mysqli_error($id);
+				return false;
 			}
 		}
-		trigger_error($this->language->lang('ACP_PMSEARCH_INDEX_DONE'));
+		return true;
 	}
 
 	/**
@@ -165,11 +171,8 @@ class mysqlSearch implements pmsearch_base
 	 */
 	public function reindex()
 	{
-		// Todo deal with timeouts while waiting for the index to complete
-
-		// Drop to rebuild
-		$this->delete_index();
-		$this->create_index();
+		// Drop and rebuild
+		return $this->delete_index() && $this->create_index();
 	}
 
 	/**
@@ -178,10 +181,16 @@ class mysqlSearch implements pmsearch_base
 	public function delete_index()
 	{
 		// Quick check to avoid altering the table while altering the table
-		$this->status_check();
+		if (!$this->status_check())
+		{
+			return false;
+		}
 
 		$sql = 'ALTER TABLE ' . PRIVMSGS_TABLE . ' DROP INDEX IF EXISTS pmsearch_b, DROP INDEX IF EXISTS pmsearch_s, DROP INDEX IF EXISTS pmsearch_t, DROP INDEX IF EXISTS pmsearch_ta';
-		$this->db->sql_query($sql,0);
+		$this->db->sql_query($sql);
+
+		// No point in trying to catch any error, phpBB will do it for us
+		return true;
 	}
 
 	/**
@@ -195,14 +204,22 @@ class mysqlSearch implements pmsearch_base
 	/**
 	 * @inheritDoc
 	 */
-	public function search(array $indexes, string $keywords, array $from, array $to, array $folders, string $order, string $direction, int $offset)
+	public function search(int $uid, array $indexes, string $keywords, array $from, array $to, array $folders, string $order, string $direction, int $offset)
 	{
+		// Check if ready
+		if (!$this->status_check())
+		{
+			return false;
+		}
+
+		// More checks
 		if (!$this->config['pmsearch_enable'] || !$this->index_check())
 		{
 			return false;
 		}
-		// Make suer we only search messages to the user
-		$where = ['t.user_id = ' . $this->uid];
+
+		// Only search messages to the user
+		$where = ['t.user_id = ' . $uid];
 
 		// Convert indexes to string
 		$columns = implode(',', $indexes);
@@ -265,7 +282,7 @@ class mysqlSearch implements pmsearch_base
 			 */
 
 			// Limit messages to ones the user has sent
-			$where[] = 'p.author_id = ' . $this->uid;
+			$where[] = 'p.author_id = ' . $uid;
 
 			if (count($to) == 1)
 			{
@@ -297,8 +314,11 @@ class mysqlSearch implements pmsearch_base
 				LIMIT ' . $offset . ',' . $this->config['posts_per_page'];
 
 		// Get matching message ids
-		$result     = $this->db->sql_query($sql);
-		$this->rows = $this->db->sql_fetchrowset($result);
+		$result            = $this->db->sql_query($sql);
+		while($row = $this->db->sql_fetchrow($result))
+		{
+			$this->message_ids[] = $row['id'];
+		}
 
 		// Count all the distinct message id's to find total count of rows
 		$sql               = 'SELECT COUNT(DISTINCT p.msg_id) as total_count
@@ -314,19 +334,17 @@ class mysqlSearch implements pmsearch_base
 	}
 
 	/**
-	 * @inheritDoc
+	 * Check if the indexes still processing
+	 *
+	 * @return bool
 	 */
-	public function query($query)
-	{
-		// TODO: Implement query() method.
-	}
-
 	private function status_check()
 	{
 		// Must use MySQL to use MySQL
 		if ($this->db->get_sql_layer() != 'mysqli')
 		{
-			trigger_error($this->language->lang('FULLTEXT_MYSQL_INCOMPATIBLE_DATABASE'));
+			$this->error_msg = 'FULLTEXT_MYSQL_INCOMPATIBLE_DATABASE';
+			return false;
 		}
 
 		// TODO add a where statement
@@ -337,7 +355,8 @@ class mysqlSearch implements pmsearch_base
 			// The Info column contains the SQL query of the process
 			if (strpos($row['Info'], 'ALTER TABLE ' . PRIVMSGS_TABLE) !== false)
 			{
-				// Don't continue if MySQL is still processing the indexes
+				// MySQL is still processing the indexes
+				$this->error_msg = 'ACP_PMSEARCH_PROCESSING';
 				return false;
 			}
 		}

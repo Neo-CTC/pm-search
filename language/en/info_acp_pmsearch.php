@@ -46,7 +46,7 @@ $lang = array_merge($lang, [
 	'ACP_PMSEARCH_PROCESSING'        => 'Indexing in process',
 	'ACP_PMSEARCH_NO_INDEX'          => 'Index missing',
 	'ACP_PMSEARCH_NO_INDEX_CREATE'   => 'Index missing, create index inside configuration file',
-	'ACP_PMSEARCH_INDEX_EMPTY'       => 'Index empty',
+	'ACP_PMSEARCH_INDEX_EMPTY'       => 'Ready to index',
 	'ACP_PMSEARCH_INCOMPLETE'        => 'Indexing incomplete',
 
 	// MySQL index status
@@ -68,7 +68,6 @@ $lang = array_merge($lang, [
 	// Maintenance responses
 	'ACP_PMSEARCH_INDEX_DONE'        => 'Indexing complete',
 	'ACP_PMSEARCH_DROP_DONE'         => 'Deletion complete',
-	'ACP_PMSEARCH_INDEX_STATS'       => 'Time: %s seconds<br />Memory usage: %s MiB',
 	'ACP_PMSEARCH_ACTION_NONE'       => 'Unknown action',
 
 	// Error messages
@@ -80,7 +79,7 @@ $lang = array_merge($lang, [
 
 	// Sphinx error messages
 	'ACP_PMSEARCH_UNKNOWN_VERSION'   => 'Unknown or unsupported Sphinx/Manticore version',
-	'ACP_PMSEARCH_UNSUPPORTED_INDEX' => 'Index type [%s] is unsupported',
+	'ACP_PMSEARCH_UNSUPPORTED_INDEX' => 'Index type is unsupported. Must be of type RT.',
 
 	// MySQL error messages
 	'ACP_PMSEARCH_INDEX_CREATE_ERR_MYSQL' => 'Unknown error when creating search indexes for MySQL'

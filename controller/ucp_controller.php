@@ -24,6 +24,7 @@ use phpbb\auth\auth;
 
 /**
  * PM Search UCP controller.
+ *
  */
 class ucp_controller
 {
@@ -40,6 +41,7 @@ class ucp_controller
 	protected $uid;
 	protected $root;
 	protected $ext;
+	private $name_cache;
 
 	/**
 	 * Constructor.
@@ -49,6 +51,8 @@ class ucp_controller
 	 * @param \phpbb\request\request            $request  Request object
 	 * @param \phpbb\template\template          $template Template object
 	 * @param \phpbb\user                       $user     User object
+	 * @param \phpbb\pagination                 $page
+	 * @param \phpbb\config\config              $conf
 	 * @param \phpbb\auth\auth                  $auth
 	 */
 	public function __construct(driver_interface $db, language $language, request $request, template $template, user $user, pagination $page, config $conf, auth $auth)
@@ -75,6 +79,7 @@ class ucp_controller
 		{
 			trigger_error($this->language->lang('UCP_PMSEARCH_ERR_GENERIC'));
 		}
+		$this->name_cache = [];
 	}
 
 	public function display_messages()
@@ -90,7 +95,6 @@ class ucp_controller
 		}
 
 		// Todo don't forget about group messages
-		// Todo add try/catch
 		// Todo harden input
 		// Todo get minimum characters
 		// Todo max return limits
@@ -190,17 +194,17 @@ class ucp_controller
 		switch ($this->config['pmsearch_engine'])
 		{
 			case 'sphinx':
-				$backend = new sphinxSearch($this->uid, $this->config, $this->language, $this->db);
+				$backend = new sphinxSearch($this->config, $this->db);
 			break;
 			case 'mysql':
-				$backend = new mysqlSearch($this->uid, $this->config, $this->language, $this->db);
+				$backend = new mysqlSearch($this->config, $this->db);
 			break;
 			default:
 				trigger_error($this->language->lang('UCP_PMSEARCH_ERR_GENERIC'));
 				return;
 		}
 
-		$result = $backend->search($search_field, $keywords, $from_id_array, $sent_id_array, $folders, $order, $direction, $start);
+		$result = $backend->search($this->uid, $search_field, $keywords, $from_id_array, $sent_id_array, $folders, $order, $direction, $start);
 		if (!$result)
 		{
 			if ($this->auth->acl_get('a_') && $backend->error_msg)
@@ -215,7 +219,7 @@ class ucp_controller
 		}
 		else
 		{
-			$rows        = $backend->rows;
+			$message_ids = $backend->message_ids;
 			$total_found = $backend->total_found;
 		}
 
@@ -227,14 +231,9 @@ class ucp_controller
 		 */
 
 
-		if ($rows)
+		if ($message_ids)
 		{
 			// Collect message ids
-			$message_ids = [];
-			foreach ($rows as $row)
-			{
-				$message_ids[] = $row['id'];
-			}
 			$sql_where = $this->db->sql_in_set('p.msg_id', $message_ids);
 
 			// SQL for fetching messages from ids
@@ -298,11 +297,24 @@ class ucp_controller
 				 */
 
 
-				// Todo: We're not ready to handle bcc yet
-				$row['bcc_address'] = '';
-				$recipient          = get_recipient_strings([$row['msg_id'] => $row]);
-				$recipient          = implode(' ', $recipient[$row['msg_id']]);
+				//Build to address string
+				$to_address = $this->colorize_usernames(explode(":",$row['to_address']));
 
+				//Build bcc address string
+				$bcc_address = '';
+				if ($row['bcc_address'])
+				{
+					// Let the author see all bcc
+					if ($row['author_id'] == $this->uid)
+					{
+						$bcc_address = $this->colorize_usernames(explode(":", $row['bcc_address']));
+					}
+					// Let user see bcc to self
+					else if (preg_match('/u_' . $this->uid . '(?:$|:)/', $row['bcc_address']))
+					{
+						$bcc_address = $this->colorize_usernames(['u_' . $this->uid]);
+					}
+				}
 
 				/*
 				 *
@@ -337,10 +349,11 @@ class ucp_controller
 
 
 				$this->template->assign_block_vars('searchresults', [
-					'DATE'       => (!empty($row['message_time'])) ? $this->user->format_date($row['message_time']) : '',
-					'AUTHOR'     => get_username_string('full', $row['author_id'], $row['author_name'], $row['author_colour']),
-					'RECIPIENTS' => $recipient,
-					'FOLDER'     => $folder_name,
+					'DATE'          => (!empty($row['message_time'])) ? $this->user->format_date($row['message_time']) : '',
+					'AUTHOR'        => get_username_string('full', $row['author_id'], $row['author_name'], $row['author_colour']),
+					'RECIPIENTS'    => $to_address,
+					'BCC_RECIPIENT' => $bcc_address,
+					'FOLDER'        => $folder_name,
 
 					'SUBJECT' => $row['message_subject'],
 					'MESSAGE' => $row['message_text'],
@@ -440,7 +453,6 @@ class ucp_controller
 	public function display_options()
 	{
 		// Todo permission checking
-		// Todo remove stop-gap styles
 
 		// Form key for preventing CSRF attacks
 		add_form_key('crosstimecafe_pmsearch_ucp');
@@ -539,5 +551,48 @@ class ucp_controller
 			//trigger_error('NO_SEARCH_RESULTS');
 		}
 		return $id_array;
+	}
+
+	/**
+	 * Add links and color to an array of to and bcc usernames.
+	 * Copied from functions_privmsgs.php->write_pm_addresses()
+	 *
+	 * @param $user_ids string[] Array of usernames to colorize
+	 *
+	 * @return string
+	 */
+	private function colorize_usernames(array $user_ids)
+	{
+		$find_names = [];
+		$colorized = [];
+		foreach ($user_ids as $id)
+		{
+			// Todo groups vs users
+
+			$id = substr($id,2);
+			if (isset($this->name_cache[$id]))
+			{
+				$colorized[$id] = $this->name_cache[$id];
+			}
+			else
+			{
+				$find_names[] = $id;
+			}
+		}
+
+
+		if ($find_names)
+		{
+			$sql    = 'SELECT user_id, username, user_colour
+			FROM ' . USERS_TABLE . '
+			WHERE ' . $this->db->sql_in_set('user_id', $find_names);
+			$result = $this->db->sql_query($sql);
+			while ($row = $this->db->sql_fetchrow($result))
+			{
+				$this->name_cache[$row['user_id']] = get_username_string('full',$row['user_id'], $row['username'], $row['user_colour']);
+				$colorized[$row['user_id']] = $this->name_cache[$row['user_id']];
+			}
+		}
+		return implode(' ', $colorized);
 	}
 }

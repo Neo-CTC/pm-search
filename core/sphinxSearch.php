@@ -10,39 +10,33 @@ use Foolz\SphinxQL\SphinxQL;
 use mysqli;
 use phpbb\config\config;
 use phpbb\db\driver\driver_interface;
-use phpbb\language\language;
+
 
 class sphinxSearch implements pmsearch_base
 {
-	public $rows;
+	public $message_ids;
 	public $total_found;
 	public $error_msg;
 	public $error_msg_full;
 	/**
 	 * @var $sphinxql SphinxQL
 	 */
-	public $sphinxql;
-	protected $uid;
+	protected $sphinxql;
 	protected $config;
-	protected $language;
 	protected $db;
-	protected $sphinx_id;
+	protected $index_table;
 
 	/**
-	 * @param int                               $uid
 	 * @param \phpbb\config\config              $config
-	 * @param \phpbb\language\language          $lang
 	 * @param \phpbb\db\driver\driver_interface $db
 	 */
-	public function __construct(int $uid, config $config, language $lang, driver_interface $db)
+	public function __construct(config $config, driver_interface $db)
 	{
-		$this->uid      = $uid;
 		$this->config   = $config;
-		$this->language = $lang;
 		$this->db       = $db;
 
-		$this->rows           = [];
-		$this->total_found    = null;
+		$this->message_ids = [];
+		$this->total_found = null;
 		$this->error_msg      = '';
 		$this->error_msg_full = '';
 
@@ -51,11 +45,15 @@ class sphinxSearch implements pmsearch_base
 		{
 			$this->config->set('fulltext_sphinx_id', unique_id());
 		}
-		$this->sphinx_id = 'index_phpbb_' . $this->config['fulltext_sphinx_id'] . '_private_messages';
+		$this->index_table = 'index_phpbb_' . $this->config['fulltext_sphinx_id'] . '_private_messages';
 
 		$this->connect();
 	}
 
+	/**
+	 *
+	 * @return void
+	 */
 	private function connect()
 	{
 		$conn = new Connection();
@@ -70,21 +68,26 @@ class sphinxSearch implements pmsearch_base
 	}
 
 	/**
+	 * Check if searching is ready for use
+	 *
 	 * @inheritDoc
 	 */
-	public function ready()
+	public function ready(): bool
 	{
-		// TODO: Implement ready() method.
+		return $this->config['pmsearch_sphinx_ready'] == 2 && $this->index_ready();
 	}
 
 	/**
 	 * @inheritDoc
 	 */
-	public function status()
+	public function status(): array
 	{
+		// Todo show config variables
+
 		// Set some defaults
 		$template = [
-			'SPHINX_STATUS'  => $this->language->lang('CONNECTION_FAILED'),
+			'SPHINX_STATUS'  => 'CONNECTION_FAILED',
+			'SPHINX_ID'      => 'N/A',
 			'TOTAL_MESSAGES' => 'N/A',
 			'INDEX_BYTES'    => 'N/A',
 			'RAM_BYTES'      => 'N/A',
@@ -100,51 +103,43 @@ class sphinxSearch implements pmsearch_base
 
 		$template['SPHINX_VERSION'] = ($version[0] == 's' ? 'Sphinx ' : 'Manticore ') . implode('.', array_slice($version, 1));
 
-		// Todo catch invalid index types, i.e. non rt tables
-		$ready = $this->index_ready(false);
+		$ready = $this->index_ready();
 		if ($ready)
 		{
-			$template['SPHINX_STATUS'] = $this->language->lang('ACP_PMSEARCH_READY');
+			$template['SPHINX_STATUS'] = 'ACP_PMSEARCH_READY';
 
-			$this->sphinxql->query('SHOW INDEX ' . $this->sphinx_id . ' STATUS');
-			$result = $this->query_execute(false);
-
-			while ($row = $result->fetchAssoc())
+			$this->sphinxql->query('SHOW INDEX ' . $this->index_table . ' STATUS');
+			$result = $this->query_execute();
+			if ($result)
 			{
-				switch ($row['Variable_name'])
+				$template['SPHINX_ID'] = $this->index_table;
+				while ($row = $result->fetchAssoc())
 				{
-					case 'indexed_documents':
-						$template['TOTAL_MESSAGES'] = $row['Value'];
-					break;
-					case 'disk_bytes':
-						$template['INDEX_BYTES'] = round($row['Value'] / 1048576, 1) . ' MiB';
-					break;
-					case 'ram_bytes':
-						$template['RAM_BYTES'] = round($row['Value'] / 1048576, 1) . ' MiB';
-					break;
+					switch ($row['Variable_name'])
+					{
+						case 'indexed_documents':
+							$template['TOTAL_MESSAGES'] = $row['Value'];
+						break;
+						case 'disk_bytes':
+							$template['INDEX_BYTES'] = round($row['Value'] / 1048576, 1) . ' MiB';
+						break;
+						case 'ram_bytes':
+							$template['RAM_BYTES'] = round($row['Value'] / 1048576, 1) . ' MiB';
+						break;
+					}
 				}
 			}
-			$template['SPHINX_ID'] = $this->sphinx_id;
 		}
 		// No index, but ready to be created
 		else if ($version[0] == 'm' || ($version[0] == 's' && $version[1] == 3))
 		{
-			$template['SPHINX_STATUS'] = $this->language->lang('ACP_PMSEARCH_INDEX_EMPTY');
+			$template['SPHINX_STATUS'] = 'ACP_PMSEARCH_INDEX_EMPTY';
 		}
 		else
 		{
-			$template['SPHINX_STATUS'] = $this->language->lang('ACP_PMSEARCH_NO_INDEX_CREATE');
+			$template['SPHINX_STATUS'] = 'ACP_PMSEARCH_NO_INDEX_CREATE';
 		}
 		return $template;
-
-		// Fetch index state
-
-		// Template variables
-		// SPHINX_STATUS
-
-		// SHOW_CONFIG
-		// DATA_ID
-		// DATA_PATH
 	}
 
 	/**
@@ -158,7 +153,7 @@ class sphinxSearch implements pmsearch_base
 		$this->error_msg_full = '';
 
 		$this->sphinxql->query("SHOW STATUS LIKE 'version'");
-		$result = $this->query_execute(false);
+		$result = $this->query_execute();
 
 		// Only Manticore returns a version from status
 		// Count of 1 returned row if found, 0 otherwise
@@ -173,7 +168,7 @@ class sphinxSearch implements pmsearch_base
 
 		// No version? Must be Sphinx
 		$this->sphinxql->query("SHOW VARIABLES LIKE 'version'");
-		$result = $this->query_execute(false);
+		$result = $this->query_execute();
 
 		if ($result && $result->count())
 		{
@@ -186,7 +181,7 @@ class sphinxSearch implements pmsearch_base
 
 		// Still no version? Might be an ancient version of Sphinx
 		$my = @new mysqli($this->config['pmsearch_host'], '', '', '', $this->config['pmsearch_port']);
-		if ($my)
+		if (!$my->connect_errno)
 		{
 			$v = $my->get_server_info();
 			if (preg_match('/^([\d.]+)/', $v, $m))
@@ -200,64 +195,66 @@ class sphinxSearch implements pmsearch_base
 	}
 
 	/**
-	 * @inheritDoc
+	 * Execute a prepared SphinxQL query
+	 *
+	 * @return false|\Foolz\SphinxQL\Drivers\ResultSetInterface
 	 */
-	public function query($query)
+	private function query_execute()
 	{
-		// TODO: Implement query() method.
-	}
+		// Flush error messages
+		$this->error_msg = '';
+		$this->error_msg_full = '';
 
-	private function query_execute($handle_errors = true)
-	{
-		$result = false;
 		try
 		{
 			$result = $this->sphinxql->execute();
 		}
 		catch (ConnectionException $e)
 		{
-			if ($handle_errors)
-			{
-				$this->error_handler('ACP_PMSEARCH_ERR_CONN', $e->getMessage());
-			}
+			// Can't Connect
+			$this->error_msg = 'ACP_PMSEARCH_ERR_CONN';
+			$this->error_msg_full = $e->getMessage();
+			return false;
 		}
 		catch (DatabaseException $e)
 		{
-			if ($handle_errors)
-			{
-				$this->error_handler('ACP_PMSEARCH_ERR_DB', $e->getMessage());
-			}
+			// Bad sql or missing table or some other problem
+			$this->error_msg      = 'ACP_PMSEARCH_ERR_DB';
+			$this->error_msg_full = $e->getMessage();
+			return false;
 		}
 		catch (SphinxQLException $e)
 		{
-			if ($handle_errors)
-			{
-				$this->error_handler('ACP_PMSEARCH_ERR_UNKNOWN', $e->getMessage());
-			}
+			// Unknown error
+			$this->error_msg      = 'ACP_PMSEARCH_ERR_UNKNOWN';
+			$this->error_msg_full = $e->getMessage();
+			return false;
 		}
 		return $result;
 	}
 
-	private function error_handler($msg, $err_msg = '', $str_arg = '')
+	/**
+	 * Check if the index is ready for usage
+	 *
+	 * @return bool
+	 */
+	private function index_ready(): bool
 	{
-		$error_message = $this->language->lang($msg, $str_arg);
-		$error_message .= $err_msg ? '<br>' . $err_msg : '';
-		trigger_error($error_message);
-	}
+		$this->sphinxql->query("SHOW TABLES LIKE '" . $this->index_table . "'");
+		$result = $this->query_execute();
+		if (!$result)
+		{
+			return false;
+		}
 
-	private function index_ready($handle_errors = true): bool
-	{
-		$this->sphinxql->query("SHOW TABLES LIKE '" . $this->sphinx_id . "'");
-		$result = $this->query_execute($handle_errors);
-		if ($result && $result->count())
+		if ($result->count())
 		{
 			// We can only work with RT tables
 			$row = $result->fetchAssoc();
-			if ($row['Type'] != 'rt')
+			if ($row['Type'] == 'rt')
 			{
-				$this->error_handler('ACP_PMSEARCH_UNSUPPORTED_INDEX', '', $row['Type']);
+				return true;
 			}
-			return true;
 		}
 		return false;
 	}
@@ -265,18 +262,39 @@ class sphinxSearch implements pmsearch_base
 	/**
 	 * @inheritDoc
 	 */
-	public function reindex()
+	public function reindex(): bool
 	{
-		// Does our index exist?
-		$this->delete_index();
-		$this->create_index();
+		// Don't drop the index if in the middle of reindexing
+		if ($this->config['pmsearch_sphinx_ready'] != 1)
+		{
+			if (!$this->delete_index())
+			{
+				return false;
+			}
+			if (!$this->create_index())
+			{
+				return false;
+			}
+			$this->config->set('pmsearch_sphinx_ready', 0);
+		}
 
+		// Start the clock
+		$max_time = ini_get('max_execution_time');
+		$max_time = $max_time > 0 ? $max_time : 30;
+		$start_time = time();
+
+		// Todo disable pm updates while indexing
 		// Todo replace the group concat with to_uid and to_gid from the private message table
 		// Todo find a better logic for folder searching, maybe?
+		// Todo store last message id between runs
 
 		// Todo document how the query works
 
 		// TODO How portable is this sql statement?
+		// Join the message table with the recipient table
+		// Group: all users that have the message
+		// Group: folder location for each user
+		// Ignore deleted messages
 		// Returned columns must match the column names of the index
 		$query  = "SELECT
 						p.msg_id as id,
@@ -301,7 +319,7 @@ class sphinxSearch implements pmsearch_base
 		while ($rows = $this->db->sql_fetchrowset($result))
 		{
 			// Set query mode to insert
-			$this->sphinxql->insert()->into($this->sphinx_id)
+			$this->sphinxql->insert()->into($this->index_table)
 			;
 
 			// Load rows into query
@@ -314,13 +332,31 @@ class sphinxSearch implements pmsearch_base
 				// Row must be an associative array with the column names as keys
 				$this->sphinxql->set($row);
 			}
-			$this->query_execute();
+			$qe_result = $this->query_execute();
+			if(!$qe_result)
+			{
+				return false;
+			}
+
+			// Watch the clock, don't want the script to timeout
+			$run_time = time() - $start_time;
+
+			// 5 seconds left on the clock, stop here
+			if ($max_time - $run_time < 6)
+			{
+				$this->config->set('pmsearch_sphinx_ready', 1);
+				return true;
+			}
 
 			// Next 500 rows
 			$offset += $limit;
 			$this->db->sql_freeresult($result);
 			$result = $this->db->sql_query_limit($query, $limit, $offset);
 		}
+
+		// Done and ready
+		$this->config->set('pmsearch_sphinx_ready', 2);
+		return true;
 	}
 
 	/**
@@ -332,7 +368,7 @@ class sphinxSearch implements pmsearch_base
 		$version = $this->get_version();
 		if (!$version)
 		{
-			$this->error_handler('CONNECTION_FAILED');
+			return false;
 		}
 
 		// Manticore 3.0+
@@ -340,23 +376,23 @@ class sphinxSearch implements pmsearch_base
 		{
 			// Add `-` to the list of characters to index, allow wildcards, strip xml tags
 			$index_settings = "charset_table = 'non_cjk, U+002D' min_prefix_len = '3' min_infix_len = '3' html_strip = '1'";
-			$this->sphinxql->query('CREATE TABLE ' . $this->sphinx_id . "(author_id integer,user_id multi,message_time timestamp,message_subject text indexed,message_text text indexed,folder_id text indexed) " . $index_settings);
+			$this->sphinxql->query('CREATE TABLE ' . $this->index_table . "(author_id integer,user_id multi,message_time timestamp,message_subject text indexed,message_text text indexed,folder_id text indexed) " . $index_settings);
 		}
 
 		//Sphinx 3.x
 		else if ($version[0] == 's' && $version[1] == 3)
 		{
-			$this->sphinxql->query('CREATE TABLE ' . $this->sphinx_id . '(author_id integer,user_id multi,message_time bigint,message_subject field ,message_text field,folder_id field)');
+			$this->sphinxql->query('CREATE TABLE ' . $this->index_table . '(author_id integer,user_id multi,message_time bigint,message_subject field ,message_text field,folder_id field)');
 		}
 		else
 		{
 			// Old Sphinx version, user needs to create the index table
 			if (!$this->index_ready())
 			{
-				$this->error_handler('ACP_PMSEARCH_NO_INDEX_CREATE', '');
+				$this->error_msg = 'ACP_PMSEARCH_NO_INDEX_CREATE';
 			}
 		}
-		$this->query_execute();
+		return $this->query_execute();
 	}
 
 	/**
@@ -367,24 +403,25 @@ class sphinxSearch implements pmsearch_base
 		$version = $this->get_version();
 		if (!$version)
 		{
-			$this->error_handler('CONNECTION_FAILED');
+			return false;
 		}
 
 		if ($version[0] == 'm' || $version[1] == 3)
 		{
-			$this->sphinxql->query('DROP TABLE IF EXISTS ' . $this->sphinx_id);
+			$this->sphinxql->query('DROP TABLE IF EXISTS ' . $this->index_table);
 		}
 		else
 		{
 			if (!$this->index_ready())
 			{
-				$this->error_handler('ACP_PMSEARCH_NO_INDEX_CREATE');
+				$this->error_msg = 'ACP_PMSEARCH_NO_INDEX_CREATE';
+				return false;
 			}
 			// Sphinx 2.x, we can't drop the table, but we can delete all the data in it
-			$this->sphinxql->query('TRUNCATE RTINDEX ' . $this->sphinx_id);
+			$this->sphinxql->query('TRUNCATE RTINDEX ' . $this->index_table);
 		}
 
-		$this->query_execute();
+		return $this->query_execute();
 	}
 
 	/**
@@ -398,9 +435,9 @@ class sphinxSearch implements pmsearch_base
 	/**
 	 * @inheritDoc
 	 */
-	public function search(array $indexes, string $keywords, array $from, array $to, array $folders, string $order, string $direction, int $offset)
+	public function search(int $uid, array $indexes, string $keywords, array $from, array $to, array $folders, string $order, string $direction, int $offset)
 	{
-		if (!$this->index_ready(false))
+		if (!$this->index_ready())
 		{
 			return false;
 		}
@@ -416,10 +453,10 @@ class sphinxSearch implements pmsearch_base
 		$search->select('id');
 
 		// Table
-		$search->from($this->sphinx_id);
+		$search->from($this->index_table);
 
 		// Where, all following where functions are combined using AND
-		$search->where('user_id', $this->uid);
+		$search->where('user_id', $uid);
 
 		// Search for terms while also allowing control characters
 		if ($keywords)
@@ -436,7 +473,7 @@ class sphinxSearch implements pmsearch_base
 		// Search for messages sent to these recipients
 		if ($to)
 		{
-			$search->where('author_id', '=', $this->uid);
+			$search->where('author_id', '=', $uid);
 			$search->where('user_id', 'IN', $to);
 		}
 
@@ -450,7 +487,7 @@ class sphinxSearch implements pmsearch_base
 				// Todo this could probably be replaced with a better logic/sql statement?? Try MVA big numbers
 
 				// Yes the `"` are required
-				$f = '"' . $this->uid . '_' . $f . '"';
+				$f = '"' . $uid . '_' . $f . '"';
 			}
 			unset($f);
 
@@ -461,48 +498,29 @@ class sphinxSearch implements pmsearch_base
 		$search->orderBy($order, $direction);
 		$search->limit($offset, $this->config['posts_per_page']);
 
-		try
-		{
-			// Fetch matches
-			$result     = $this->sphinxql->execute();
-			$this->rows = $result->fetchAllAssoc();
-
-			// Fetch total matches
-			$this->sphinxql->query("SHOW META LIKE 'total_found'");
-			$result            = $this->sphinxql->execute();
-			$meta_data         = $result->fetchAllNum();
-			$this->total_found = $meta_data[0][1];
-		}
-		catch (ConnectionException $e)
-		{
-			// Can't connect
-			$this->error_msg      = 'UCP_PMSEARCH_ERR_CONN';
-			$this->error_msg_full = $e->getMessage();
-			// Todo better error handling
-		}
-		catch (DatabaseException $e)
-		{
-			// Bad sql or missing table or some other problem
-			$this->error_msg      = 'UCP_PMSEARCH_ERR_DB';
-			$this->error_msg_full = $e->getMessage();
-		}
-		catch (SphinxQLException $e)
-		{
-			// Unknown error
-			$this->error_msg      = 'UCP_PMSEARCH_ERR_UNKNOWN';
-			$this->error_msg_full = $e->getMessage();
-		}
-
-		// Reset connection for future usage
-		$this->sphinxql->reset();
-
-		if (!$this->error_msg)
-		{
-			return true;
-		}
-		else
+		// Fetch matches
+		$result = $this->query_execute();
+		if (!$result)
 		{
 			return false;
 		}
+
+		while($row = $result->fetchAssoc())
+		{
+			$this->message_ids[] = $row['id'];
+		}
+
+		// Fetch total matches
+		$this->sphinxql->query("SHOW META LIKE 'total_found'");
+		$result = $this->query_execute();
+		if (!$result)
+		{
+			return false;
+		}
+
+		$meta_data         = $result->fetchAssoc();
+		$this->total_found = $meta_data['Value'];
+
+		return true;
 	}
 }

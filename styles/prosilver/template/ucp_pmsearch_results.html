@@ -46,7 +46,8 @@
 		<div class="postprofile">
 			<strong>{L_SENT_AT}{L_COLON}</strong> {searchresults.DATE}
 			<br/><strong>{L_PM_FROM}{L_COLON}</strong> {searchresults.AUTHOR}
-			<br/><strong>{L_TO}{L_COLON}</strong> {searchresults.RECIPIENTS}
+			{% if searchresults.RECIPIENTS %}<br/><strong>{L_TO}{L_COLON}</strong> {searchresults.RECIPIENTS}{% endif %}
+			{% if searchresults.BCC_RECIPIENT %}<br/><strong>{L_BCC}{L_COLON}</strong> {searchresults.BCC_RECIPIENT}{% endif %}
 			<br/><strong>{L_UCP_PMSEARCH_FOLDER}{L_COLON}</strong> {searchresults.FOLDER}
 		</div>
 
