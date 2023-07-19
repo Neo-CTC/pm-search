@@ -25,9 +25,10 @@ class main_module
 	 *
 	 * @param int    $id   The module ID
 	 * @param string $mode The module mode (for example: manage or settings)
+	 *
 	 * @throws \Exception
 	 */
-	public function main($id, $mode)
+	public function main(int $id, string $mode)
 	{
 		// Fetch the controller
 		/** @var \phpbb\request\request $request */

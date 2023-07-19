@@ -10,7 +10,9 @@
 
 namespace crosstimecafe\pmsearch\migrations;
 
-class install_acp_module extends \phpbb\db\migration\migration
+use phpbb\db\migration\migration;
+
+class install_acp_module extends migration
 {
 	public function effectively_installed()
 	{
@@ -48,6 +50,7 @@ class install_acp_module extends \phpbb\db\migration\migration
 				],
 			]],
 			['config.add', ['pmsearch_enable', 0]],
+			['config.add', ['pmsearch_sphinx_ready', 0]],
 			['config.add', ['pmsearch_engine', 'sphinx']],
 			['config.add', ['pmsearch_host', '127.0.0.1']],
 			['config.add', ['pmsearch_port', '9306']],

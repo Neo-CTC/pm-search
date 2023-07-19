@@ -10,7 +10,9 @@
 
 namespace crosstimecafe\pmsearch\migrations;
 
-class install_ucp_module extends \phpbb\db\migration\migration
+use phpbb\db\migration\migration;
+
+class install_ucp_module extends migration
 {
 	public function effectively_installed()
 	{

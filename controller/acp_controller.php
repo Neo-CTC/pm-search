@@ -14,6 +14,7 @@ use crosstimecafe\pmsearch\core\mysqlSearch;
 use crosstimecafe\pmsearch\core\sphinxSearch;
 use phpbb\config\config;
 use phpbb\db\driver\driver_interface;
+use phpbb\json_response;
 use phpbb\language\language;
 use phpbb\log\log;
 use phpbb\request\request;
@@ -44,14 +45,21 @@ class acp_controller
 
 	public function display_status()
 	{
-		// Todo check for incompatible index versions
-		$sphinx = new sphinxSearch(0, $this->config, $this->language, $this->db);
-		$this->template->assign_vars($sphinx->status());
+		$sphinx = new sphinxSearch($this->config, $this->db);
+		$template = $sphinx->status();
+
+		// Status to local language
+		$template['SPHINX_STATUS'] = $this->language->lang($template['SPHINX_STATUS']);
+		$this->template->assign_vars($template);
 
 		if ($this->db->get_sql_layer() == 'mysqli')
 		{
-			$mysql = new mysqlSearch(0, $this->config, $this->language, $this->db);
-			$this->template->assign_vars($mysql->status());
+			$mysql = new mysqlSearch($this->config, $this->db);
+			$template = $mysql->status();
+
+			// Status to local language
+			$template['MYSQL_STATUS'] = $this->language->lang($template['MYSQL_STATUS']);
+			$this->template->assign_vars($template);
 		}
 		else
 		{
@@ -72,15 +80,10 @@ class acp_controller
 
 	public function display_options()
 	{
-		/*
-		 *
-		 * Set template variables
-		 *
-		 */
-
-
+		// Always add the form key
 		add_form_key('crosstimecafe_pmsearch_acp_settings');
 
+		// Todo list full text options for mysql
 		$this->template->assign_vars([
 			'U_ACTION' => $this->u_action,
 
@@ -93,49 +96,24 @@ class acp_controller
 
 	public function save_settings()
 	{
-		/*
-		 *
-		 * Validate form
-		 *
-		 */
-
-
+		 //Validate form
 		if (!check_form_key('crosstimecafe_pmsearch_acp_settings'))
 		{
 			trigger_error($this->language->lang('FORM_INVALID'));
 		}
 
-
-		/*
-		 *
-		 * Collect input
-		 *
-		 */
-
-
+		//Collect input
 		$type    = $this->request->variable('search_type', 'sphinx');
 		$enabled = $this->request->variable('enable_search', 0);
 		$host    = $this->request->variable('hostname', '127.0.0.1');
 		$port    = $this->request->variable('port', 9306);
 
-
-		/*
-		 *
-		 * Validate input
-		 *
-		 */
-
+		//Validate input
 		// Todo: validate host, maybe
 		$port = ($port > 0 && $port <= 65535) ? $port : 9306;
 
 
-		/*
-		 *
-		 * Save settings
-		 *
-		 */
-
-
+		//Save settings
 		$enabled ? $this->config->set('pmsearch_enable', 1) : $this->config->set('pmsearch_enable', 0);
 
 		if ($type == 'sphinx')
@@ -154,37 +132,62 @@ class acp_controller
 
 	public function maintenance($action, $engine)
 	{
+		$json_response = new json_response;
+
 		switch ($engine)
 		{
 			case 'sphinx':
-				$backend = new sphinxSearch(0, $this->config, $this->language, $this->db);
+				$backend = new sphinxSearch($this->config, $this->db);
 				break;
 			case 'mysql':
-				$backend = new mysqlSearch(0, $this->config, $this->language, $this->db);
+				$backend = new mysqlSearch($this->config, $this->db);
 				break;
 			default:
-				break;
+				return;
 		}
 
 		switch ($action)
 		{
 			case 'delete':
-				$backend->delete_index();
-				trigger_error($this->language->lang('ACP_PMSEARCH_DROP_DONE'));
-				break;
+				if ($backend->delete_index())
+				{
+					// Todo refresh not working
+					$json_response->send([
+						'MESSAGE_TITLE' => $this->language->lang('INFORMATION'),
+						'MESSAGE_TEXT'  => $this->language->lang('ACP_PMSEARCH_DROP_DONE'),
+						'REFRESH_DATA'  => [
+							'time' => 5,
+						]
+					]);
+				}
+				else
+				{
+					$json_response->send([
+						'MESSAGE_TITLE' => $this->language->lang('ERROR'),
+						'MESSAGE_TEXT'  => $this->language->lang($backend->error_msg) . "<br>" . $backend->error_msg_full,
+					]);
+				}
+			break;
 
 			case 'create':
-				// Collect the starting time, indexing takes a long time
-				$time = microtime(true);
-
-				$backend->reindex();
-
-				// Set the message to send
-				$message = $this->language->lang('ACP_PMSEARCH_INDEX_DONE');
-				$message .= '<br />' . $this->language->lang('ACP_PMSEARCH_INDEX_STATS', round(microtime(true) - $time, 1), round(memory_get_peak_usage() / 1048576, 2));
-				trigger_error($message);
-				break;
-			default:
+				// Todo error levels
+				if ($backend->reindex())
+				{
+					$json_response->send([
+						'MESSAGE_TITLE' => $this->language->lang('INFORMATION'),
+						'MESSAGE_TEXT'  => $this->language->lang('ACP_PMSEARCH_INDEX_DONE'),
+						'REFRESH_DATA'  => [
+							'time' => 5,
+						]
+					]);
+				}
+				else
+				{
+					$json_response->send([
+						'MESSAGE_TITLE' => $this->language->lang('ERROR'),
+						'MESSAGE_TEXT'  => $this->language->lang($backend->error_msg) . "<br>" . $backend->error_msg_full,
+					]);
+				}
 				break;
 		}
 	}
@@ -193,10 +196,4 @@ class acp_controller
 	{
 		$this->u_action = $u_action;
 	}
-	
-	private function get_backend($engine)
-	{
-		
-	}
-
 }

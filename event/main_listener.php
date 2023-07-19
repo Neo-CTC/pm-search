@@ -16,6 +16,9 @@ use Foolz\SphinxQL\Exception\DatabaseException;
 use Foolz\SphinxQL\Exception\SphinxQLException;
 use Foolz\SphinxQL\SphinxQL;
 
+use phpbb\config\config;
+use phpbb\db\driver\driver_interface;
+use phpbb\user;
 use Symfony\Component\Config\Definition\Exception\Exception;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
@@ -47,7 +50,7 @@ class main_listener implements EventSubscriberInterface
 	private $sql_fetch;
 	private $sphinx_id;
 
-	public function __construct(\phpbb\db\driver\driver_interface $db, \phpbb\user $user, \phpbb\config\config $config)
+	public function __construct(driver_interface $db, user $user, config $config)
 	{
 		$this->db      = $db;
 		$this->user    = $user;
@@ -58,7 +61,7 @@ class main_listener implements EventSubscriberInterface
 
 		$this->sphinx_id = 'index_phpbb_' . $this->config['fulltext_sphinx_id'] . '_private_messages';
 
-		// Mysql only. Might work with others but idk.
+		// Mysql only. Might work with others but I don't know.
 		$this->sql_fetch = [
 			'SELECT'    => 'p.msg_id as id,p.author_id author_id,GROUP_CONCAT(t.user_id SEPARATOR \' \') user_id,p.message_time,p.message_subject,p.message_text,GROUP_CONCAT( CONCAT(t.user_id,\'_\',t.folder_id) SEPARATOR \' \') folder_id',
 			'FROM'      => [PRIVMSGS_TABLE => 'p'],
@@ -107,14 +110,7 @@ class main_listener implements EventSubscriberInterface
 		{
 			$this->indexer->execute();
 		}
-		catch (ConnectionException $e)
-		{
-
-		}
-		catch (DatabaseException $e)
-		{
-		}
-		catch (SphinxQLException $e)
+		catch (ConnectionException|DatabaseException|SphinxQLException $e)
 		{
 		}
 	}
@@ -122,6 +118,7 @@ class main_listener implements EventSubscriberInterface
 	public function update($event)
 	{
 		// Todo what if the message was deleted by the sender before it could be viewed by the recipient
+		// Todo reindex message text on edit
 		// By this point all new messages should be placed into the inbox or some other folder
 
 		$this->indexer->select('id')
@@ -139,13 +136,7 @@ class main_listener implements EventSubscriberInterface
 			$meta_data   = $meta->fetchAllNum();
 			$total_found = $meta_data[0][1];
 		}
-		catch (ConnectionException $e)
-		{
-		}
-		catch (DatabaseException $e)
-		{
-		}
-		catch (SphinxQLException $e)
+		catch (ConnectionException|DatabaseException|SphinxQLException $e)
 		{
 		}
 		if ($total_found > 0)
@@ -234,13 +225,7 @@ class main_listener implements EventSubscriberInterface
 		{
 			$this->indexer->execute();
 		}
-		catch (ConnectionException $e)
-		{
-		}
-		catch (DatabaseException $e)
-		{
-		}
-		catch (SphinxQLException $e)
+		catch (ConnectionException|DatabaseException|SphinxQLException $e)
 		{
 		}
 	}
