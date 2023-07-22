@@ -24,8 +24,12 @@
 			<dd>
 				<select id="search_type" name="search_type" data-togglable-settings="true">
 					<!-- Todo get db type -->
-					<option value="sphinx"{% if search_type == 'sphinx' %} selected{% endif %} data-toggle-setting="#sphinx_settings">Sphinx</option>
-					<option value="mysql"{% if search_type == 'mysql' %} selected{% endif %} data-toggle-setting="#mysql_settings">MySQL</option>
+					<option value="sphinx"{% if search_type == 'sphinx' %} selected{% endif %} data-toggle-setting="#sphinx_settings">
+						Sphinx
+					</option>
+					<option value="mysql"{% if search_type == 'mysql' %} selected{% endif %} data-toggle-setting="#mysql_settings">
+						MySQL
+					</option>
 					<!-- <option value="mysql"{% if search_type == 'postgresql' %} selected{% endif %} data-toggle-setting="#postgresql_settings">PostgreSQL</option> -->
 				</select>
 			</dd>

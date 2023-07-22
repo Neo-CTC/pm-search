@@ -16,7 +16,7 @@ class install_ucp_module extends migration
 {
 	public function effectively_installed()
 	{
-		$sql  = 'SELECT module_id
+		$sql = 'SELECT module_id
 			FROM ' . $this->table_prefix . "modules
 			WHERE module_class = 'ucp'
 				AND module_langname = 'UCP_PMSEARCH_TITLE'";
@@ -36,14 +36,8 @@ class install_ucp_module extends migration
 	public function update_data()
 	{
 		return [
-			['module.add', [
-				'ucp',
-				'UCP_PM',
-				[
-					'module_basename' => '\crosstimecafe\pmsearch\ucp\main_module',
-					'modes'           => ['search'],
-				],
-			]],
+			//action; [ module class; parent; data[] ]
+			['module.add', ['ucp', 'UCP_PM', ['module_basename' => '\crosstimecafe\pmsearch\ucp\main_module', 'modes' => ['search']]]],
 		];
 	}
 }

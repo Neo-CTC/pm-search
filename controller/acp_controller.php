@@ -45,7 +45,7 @@ class acp_controller
 
 	public function display_status()
 	{
-		$sphinx = new sphinxSearch($this->config, $this->db);
+		$sphinx   = new sphinxSearch($this->config, $this->db);
 		$template = $sphinx->status();
 
 		// Status to local language
@@ -54,7 +54,7 @@ class acp_controller
 
 		if ($this->db->get_sql_layer() == 'mysqli')
 		{
-			$mysql = new mysqlSearch($this->config, $this->db);
+			$mysql    = new mysqlSearch($this->config, $this->db);
 			$template = $mysql->status();
 
 			// Status to local language
@@ -71,10 +71,10 @@ class acp_controller
 		{
 			case 'sphinx':
 				$this->template->assign_var('SPHINX_ACTIVE', 1);
-				break;
+			break;
 			case 'mysql':
 				$this->template->assign_var('MYSQL_ACTIVE', 1);
-				break;
+			break;
 		}
 	}
 
@@ -96,7 +96,7 @@ class acp_controller
 
 	public function save_settings()
 	{
-		 //Validate form
+		//Validate form
 		if (!check_form_key('crosstimecafe_pmsearch_acp_settings'))
 		{
 			trigger_error($this->language->lang('FORM_INVALID'));
@@ -138,10 +138,10 @@ class acp_controller
 		{
 			case 'sphinx':
 				$backend = new sphinxSearch($this->config, $this->db);
-				break;
+			break;
 			case 'mysql':
 				$backend = new mysqlSearch($this->config, $this->db);
-				break;
+			break;
 			default:
 				return;
 		}
@@ -157,7 +157,7 @@ class acp_controller
 						'MESSAGE_TEXT'  => $this->language->lang('ACP_PMSEARCH_DROP_DONE'),
 						'REFRESH_DATA'  => [
 							'time' => 5,
-						]
+						],
 					]);
 				}
 				else
@@ -178,7 +178,7 @@ class acp_controller
 						'MESSAGE_TEXT'  => $this->language->lang('ACP_PMSEARCH_INDEX_DONE'),
 						'REFRESH_DATA'  => [
 							'time' => 5,
-						]
+						],
 					]);
 				}
 				else
@@ -188,7 +188,7 @@ class acp_controller
 						'MESSAGE_TEXT'  => $this->language->lang($backend->error_msg) . "<br>" . $backend->error_msg_full,
 					]);
 				}
-				break;
+			break;
 		}
 	}
 

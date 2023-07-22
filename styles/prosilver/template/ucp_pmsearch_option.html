@@ -12,22 +12,25 @@
 					<dt>
 						<label for="keywords">{L_SEARCH_KEYWORDS}{L_COLON}</label><br/><span>{L_SEARCH_KEYWORDS_EXPLAIN}</span>
 					</dt>
-					<dd><input type="search" class="inputbox" name="keywords" id="keywords" size="40"
-							   title="{L_SEARCH_KEYWORDS}"/></dd>
+					<dd>
+						<input type="search" class="inputbox" name="keywords" id="keywords" size="40" title="{L_SEARCH_KEYWORDS}"/>
+					</dd>
 				</dl>
 				<dl>
 					<dt>
 						<label for="from">{L_UCP_PMSEARCH_FROM}{L_COLON}</label><br/><span>{L_UCP_PMSEARCH_SEPARATOR}</span>
 					</dt>
-					<dd><input type="search" class="inputbox" name="from" id="from" size="40"
-							   title="{L_SEARCH_AUTHOR}"/></dd>
+					<dd>
+						<input type="search" class="inputbox" name="from" id="from" size="40" title="{L_SEARCH_AUTHOR}"/>
+					</dd>
 				</dl>
 				<dl>
 					<dt>
 						<label for="sent">{L_UCP_PMSEARCH_TO}{L_COLON}</label><br/><span>{L_UCP_PMSEARCH_SEPARATOR}</span>
 					</dt>
-					<dd><input type="search" class="inputbox" name="sent" id="sent" size="40"
-							   title="{L_UCP_PMSEARCH_TO}"/></dd>
+					<dd>
+						<input type="search" class="inputbox" name="sent" id="sent" size="40" title="{L_UCP_PMSEARCH_TO}"/>
+					</dd>
 				</dl>
 			</fieldset>
 		</div>
@@ -105,9 +108,10 @@
 	<fieldset>
 		<dl>
 			<dt>&nbsp;</dt>
-			<dd><input type="submit" name="submit" id="submit" class="button1" value="{{ lang('SUBMIT') }}"
-					   tabindex="2"/>&nbsp;
-				<input type="reset" name="reset" class="button2" value="{{ lang('RESET') }}"/></dd>
+			<dd>
+				<input type="submit" name="submit" id="submit" class="button1" value="{{ lang('SUBMIT') }}" tabindex="2"/>&nbsp;
+				<input type="reset" name="reset" class="button2" value="{{ lang('RESET') }}"/>
+			</dd>
 		</dl>
 		{{ S_HIDDEN_FIELDS }}
 		{{ S_FORM_TOKEN }}

@@ -119,7 +119,7 @@
 	</table>
 </div>
 
-{%  if not MYSQL_SKIP %}
+{% if not MYSQL_SKIP %}
 	<fieldset>
 		<legend>MySQL Fulltext {{ lang('ACP_PMSEARCH_INDEX_COMMANDS') }}</legend>
 		<form id="mysql_action_reindex" method="post" action="{{ U_ACTION }}" data-ajax="true">

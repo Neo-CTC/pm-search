@@ -298,7 +298,7 @@ class ucp_controller
 
 
 				//Build to address string
-				$to_address = $this->colorize_usernames(explode(":",$row['to_address']));
+				$to_address = $this->colorize_usernames(explode(":", $row['to_address']));
 
 				//Build bcc address string
 				$bcc_address = '';
@@ -520,6 +520,7 @@ class ucp_controller
 	 * Converts string of usernames to array of user ids
 	 *
 	 * @param string $str String of usernames seperated by commas
+	 *
 	 * @return array
 	 */
 	private function get_ids(string $str): array
@@ -564,12 +565,12 @@ class ucp_controller
 	private function colorize_usernames(array $user_ids)
 	{
 		$find_names = [];
-		$colorized = [];
+		$colorized  = [];
 		foreach ($user_ids as $id)
 		{
 			// Todo groups vs users
 
-			$id = substr($id,2);
+			$id = substr($id, 2);
 			if (isset($this->name_cache[$id]))
 			{
 				$colorized[$id] = $this->name_cache[$id];
@@ -589,8 +590,8 @@ class ucp_controller
 			$result = $this->db->sql_query($sql);
 			while ($row = $this->db->sql_fetchrow($result))
 			{
-				$this->name_cache[$row['user_id']] = get_username_string('full',$row['user_id'], $row['username'], $row['user_colour']);
-				$colorized[$row['user_id']] = $this->name_cache[$row['user_id']];
+				$this->name_cache[$row['user_id']] = get_username_string('full', $row['user_id'], $row['username'], $row['user_colour']);
+				$colorized[$row['user_id']]        = $this->name_cache[$row['user_id']];
 			}
 		}
 		return implode(' ', $colorized);

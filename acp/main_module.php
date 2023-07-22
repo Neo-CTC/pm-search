@@ -18,8 +18,6 @@ class main_module
 
 	public function main($id, $mode)
 	{
-
-
 		/*
 		 *
 		 * Setup variables
@@ -38,8 +36,8 @@ class main_module
 
 		/** @var \phpbb\request\request $request */
 		$request = $phpbb_container->get('request');
-		$action = $request->variable('action', '');
-		$engine = $request->variable('engine', '');
+		$action  = $request->variable('action', '');
+		$engine  = $request->variable('engine', '');
 
 
 		/*
@@ -56,7 +54,7 @@ class main_module
 				// Save search settings
 				case 'settings':
 					$acp_controller->save_settings();
-					break;
+				break;
 
 				// Start search reindex
 				case 'delete':
@@ -88,7 +86,7 @@ class main_module
 						$fields = build_hidden_fields(['action' => $action, 'engine' => $engine]);
 						confirm_box(false, $language->lang('CONFIRM_OPERATION'), $fields);
 					}
-					break;
+				break;
 			}
 		}
 		else
@@ -101,7 +99,7 @@ class main_module
 					$this->page_title = $language->lang('ACP_PMSEARCH_TITLE') . ' - ' . $language->lang('ACP_PMSEARCH_MODE_SETTINGS');
 					$acp_controller->set_page_url($this->u_action);
 					$acp_controller->display_options();
-					break;
+				break;
 
 				// Display status page by default
 				case 'status':

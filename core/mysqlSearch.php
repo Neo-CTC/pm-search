@@ -17,11 +17,11 @@ class mysqlSearch implements pmsearch_base
 
 	public function __construct(config $config, driver_interface $db)
 	{
-		$this->config   = $config;
-		$this->db       = $db;
+		$this->config = $config;
+		$this->db     = $db;
 
-		$this->message_ids = [];
-		$this->total_found = null;
+		$this->message_ids    = [];
+		$this->total_found    = null;
 		$this->error_msg      = '';
 		$this->error_msg_full = '';
 	}
@@ -41,7 +41,7 @@ class mysqlSearch implements pmsearch_base
 	{
 		{
 			$template = [];
-			$status = $this->status_check();
+			$status   = $this->status_check();
 
 			// Something is wrong
 			if (!$status)
@@ -111,23 +111,23 @@ class mysqlSearch implements pmsearch_base
 		// Update collation to a case-insensitive type
 		// First fetch the columns to change
 		$result = $this->db->sql_query('SHOW FULL COLUMNS FROM ' . PRIVMSGS_TABLE . ' WHERE Field IN ("message_text","message_subject") AND Collation != "utf8mb4_unicode_ci"');
-		foreach($this->db->sql_fetchrowset($result) as $row)
+		foreach ($this->db->sql_fetchrowset($result) as $row)
 		{
 			// Change column collation to utf8mb4-unicode-ci
-			$result = @mysqli_query($id, 'ALTER TABLE ' . PRIVMSGS_TABLE . ' MODIFY '. $row['Field'] . ' ' . $row['Type'] . ' CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+			$result = @mysqli_query($id, 'ALTER TABLE ' . PRIVMSGS_TABLE . ' MODIFY ' . $row['Field'] . ' ' . $row['Type'] . ' CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
 			if ($result === false)
 			{
 				$err_id = mysqli_errno($id);
 				// "MySQL server has gone away", aka client timeout
-				if ($err_id ==  2006)
+				if ($err_id == 2006)
 				{
 					$this->error_msg = 'ACP_PMSEARCH_IN_PROGRESS';
 					return false;
 				}
 				// Some other error
-				else if($err_id)
+				else if ($err_id)
 				{
-					$this->error_msg = 'GENERAL_ERROR';
+					$this->error_msg      = 'GENERAL_ERROR';
 					$this->error_msg_full = mysqli_errno($id) . ": " . mysqli_error($id);
 					return false;
 				}
@@ -150,15 +150,15 @@ class mysqlSearch implements pmsearch_base
 		{
 			$err_id = mysqli_errno($id);
 			// "MySQL server has gone away", aka client timeout
-			if ($err_id ==  2006)
+			if ($err_id == 2006)
 			{
 				$this->error_msg = 'ACP_PMSEARCH_IN_PROGRESS';
 				return false;
 			}
 			// Some other error
-			else if($err_id)
+			else if ($err_id)
 			{
-				$this->error_msg = 'GENERAL_ERROR';
+				$this->error_msg      = 'GENERAL_ERROR';
 				$this->error_msg_full = mysqli_errno($id) . ": " . mysqli_error($id);
 				return false;
 			}
@@ -287,13 +287,13 @@ class mysqlSearch implements pmsearch_base
 			if (count($to) == 1)
 			{
 				// Single address checking in both to and bcc
-				$where[] = '(MATCH(p.to_address) AGAINST("u_' .  $to[0] . '") OR MATCH(p.bcc_address) AGAINST("u_' .  $to[0] . '"))';
+				$where[] = '(MATCH(p.to_address) AGAINST("u_' . $to[0] . '") OR MATCH(p.bcc_address) AGAINST("u_' . $to[0] . '"))';
 			}
 			else
 			{
 				// Multi address matching
 				$addresses = 'u_' . implode(' u_', $to);
-				$where[] = '(MATCH(p.to_address) AGAINST("' . $addresses . '") OR MATCH(p.bcc_address) AGAINST("' .  $addresses . '"))';
+				$where[]   = '(MATCH(p.to_address) AGAINST("' . $addresses . '") OR MATCH(p.bcc_address) AGAINST("' . $addresses . '"))';
 			}
 		}
 
@@ -314,8 +314,8 @@ class mysqlSearch implements pmsearch_base
 				LIMIT ' . $offset . ',' . $this->config['posts_per_page'];
 
 		// Get matching message ids
-		$result            = $this->db->sql_query($sql);
-		while($row = $this->db->sql_fetchrow($result))
+		$result = $this->db->sql_query($sql);
+		while ($row = $this->db->sql_fetchrow($result))
 		{
 			$this->message_ids[] = $row['id'];
 		}
@@ -367,7 +367,7 @@ class mysqlSearch implements pmsearch_base
 	{
 		// Fetch list of all indexes
 		$this->db->sql_query('SHOW INDEX FROM ' . PRIVMSGS_TABLE . ' WHERE Key_name LIKE "pmsearch_%"');
-		$rows   = $this->db->sql_fetchrowset();
+		$rows = $this->db->sql_fetchrowset();
 		if (count($rows) == 6)
 		{
 			return true;
@@ -376,5 +376,13 @@ class mysqlSearch implements pmsearch_base
 		{
 			return false;
 		}
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function delete_entry($ids, $uid, $folder)
+	{
+		// Used for MySql
 	}
 }

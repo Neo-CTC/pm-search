@@ -36,19 +36,11 @@ class install_acp_module extends migration
 	{
 		// Todo: Delete indexes on removal
 		return [
-			['module.add', [
-				'acp',
-				'ACP_CAT_DOT_MODS',
-				'ACP_PMSEARCH_TITLE',
-			]],
-			['module.add', [
-				'acp',
-				'ACP_PMSEARCH_TITLE',
-				[
-					'module_basename' => '\crosstimecafe\pmsearch\acp\main_module',
-					'modes'           => ['settings','status'],
-				],
-			]],
+			//action; [ module class; parent; data[] ]
+			['module.add', ['acp', 'ACP_CAT_DOT_MODS', 'ACP_PMSEARCH_TITLE',]],
+			['module.add', ['acp', 'ACP_PMSEARCH_TITLE', ['module_basename' => '\crosstimecafe\pmsearch\acp\main_module', 'modes' => ['settings', 'status']]]],
+
+			//action; [ name; data ]
 			['config.add', ['pmsearch_enable', 0]],
 			['config.add', ['pmsearch_sphinx_ready', 0]],
 			['config.add', ['pmsearch_engine', 'sphinx']],

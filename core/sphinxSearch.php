@@ -32,11 +32,11 @@ class sphinxSearch implements pmsearch_base
 	 */
 	public function __construct(config $config, driver_interface $db)
 	{
-		$this->config   = $config;
-		$this->db       = $db;
+		$this->config = $config;
+		$this->db     = $db;
 
-		$this->message_ids = [];
-		$this->total_found = null;
+		$this->message_ids    = [];
+		$this->total_found    = null;
 		$this->error_msg      = '';
 		$this->error_msg_full = '';
 
@@ -202,7 +202,7 @@ class sphinxSearch implements pmsearch_base
 	private function query_execute()
 	{
 		// Flush error messages
-		$this->error_msg = '';
+		$this->error_msg      = '';
 		$this->error_msg_full = '';
 
 		try
@@ -212,7 +212,7 @@ class sphinxSearch implements pmsearch_base
 		catch (ConnectionException $e)
 		{
 			// Can't Connect
-			$this->error_msg = 'ACP_PMSEARCH_ERR_CONN';
+			$this->error_msg      = 'ACP_PMSEARCH_ERR_CONN';
 			$this->error_msg_full = $e->getMessage();
 			return false;
 		}
@@ -279,8 +279,8 @@ class sphinxSearch implements pmsearch_base
 		}
 
 		// Start the clock
-		$max_time = ini_get('max_execution_time');
-		$max_time = $max_time > 0 ? $max_time : 30;
+		$max_time   = ini_get('max_execution_time');
+		$max_time   = $max_time > 0 ? $max_time : 30;
 		$start_time = time();
 
 		// Todo disable pm updates while indexing
@@ -319,8 +319,7 @@ class sphinxSearch implements pmsearch_base
 		while ($rows = $this->db->sql_fetchrowset($result))
 		{
 			// Set query mode to insert
-			$this->sphinxql->replace()->into($this->index_table)
-			;
+			$this->sphinxql->replace()->into($this->index_table);
 
 			// Load rows into query
 			foreach ($rows as $row)
@@ -334,7 +333,7 @@ class sphinxSearch implements pmsearch_base
 				$this->sphinxql->set($row);
 			}
 			$qe_result = $this->query_execute();
-			if(!$qe_result)
+			if (!$qe_result)
 			{
 				return false;
 			}
@@ -430,9 +429,11 @@ class sphinxSearch implements pmsearch_base
 	 */
 	public function update_entry($id)
 	{
-		$this->sphinxql->replace()->into($this->index_table);
+		$this->sphinxql
+			->replace()
+			->into($this->index_table);
 
-		$sql  = "SELECT
+		$sql = "SELECT
 						p.msg_id as id,
 						p.author_id as author_id,
 						GROUP_CONCAT(t.user_id SEPARATOR ' ') as user_id,
@@ -442,11 +443,12 @@ class sphinxSearch implements pmsearch_base
 						GROUP_CONCAT( CONCAT(t.user_id,'_',t.folder_id) SEPARATOR ' ') as folder_id
 						FROM " . PRIVMSGS_TABLE . ' p
 						JOIN ' . PRIVMSGS_TO_TABLE . ' t ON p.msg_id = t.msg_id
-						WHERE t.pm_deleted = 0 AND ' . $this->db->sql_in_set('p.msg_id',$id) . '
+						WHERE t.pm_deleted = 0 AND ' . $this->db->sql_in_set('p.msg_id', $id) . '
 						GROUP BY p.msg_id';
+
 		$result = $this->db->sql_query($sql);
 
-		while($row = $this->db->sql_fetchrow($result))
+		while ($row = $this->db->sql_fetchrow($result))
 		{
 			// User ids to array of integers
 			$row['user_id'] = array_map('intval', explode(' ', $row['user_id']));
@@ -529,7 +531,7 @@ class sphinxSearch implements pmsearch_base
 			return false;
 		}
 
-		while($row = $result->fetchAssoc())
+		while ($row = $result->fetchAssoc())
 		{
 			$this->message_ids[] = $row['id'];
 		}
@@ -556,8 +558,10 @@ class sphinxSearch implements pmsearch_base
 		// Undelivered messages, purge them
 		if ($folder === PRIVMSGS_OUTBOX)
 		{
-			$this->sphinxql->delete()->from($this->index_table);
-			$this->sphinxql->where('id', 'IN', $ids);
+			$this->sphinxql
+				->delete()
+				->from($this->index_table)
+				->where('id', 'IN', $ids);
 			$this->query_execute();
 		}
 
@@ -584,13 +588,16 @@ class sphinxSearch implements pmsearch_base
 				JOIN " . PRIVMSGS_TO_TABLE . " t ON p.msg_id = t.msg_id
 				WHERE 
 					t.pm_deleted = 0 AND
-					" . $this->db->sql_in_set('p.msg_id', $ids) ." AND
+					" . $this->db->sql_in_set('p.msg_id', $ids) . " AND
 					t.user_id != " . $uid . "
 				GROUP BY p.msg_id";
+
 			$result = $this->db->sql_query($sql);
 
-			$this->sphinxql->replace()->into($this->index_table);
-			while($row = $this->db->sql_fetchrow($result))
+			$this->sphinxql
+				->replace()
+				->into($this->index_table);
+			while ($row = $this->db->sql_fetchrow($result))
 			{
 				// Message not deleted for everyone
 				unset($delete_ids[$row['id']]);
@@ -602,15 +609,17 @@ class sphinxSearch implements pmsearch_base
 			}
 
 			// Found stuff to update
-			if($reindex)
+			if ($reindex)
 			{
 				$this->query_execute();
 			}
 
 			if ($delete_ids)
 			{
-				$this->sphinxql->delete()->from($this->index_table) ;
-				$this->sphinxql->where('id', 'IN', array_keys($delete_ids));
+				$this->sphinxql
+					->delete()
+					->from($this->index_table)
+					->where('id', 'IN', array_keys($delete_ids));
 				$this->query_execute();
 			}
 		}

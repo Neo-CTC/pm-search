@@ -30,15 +30,14 @@ class main_listener implements EventSubscriberInterface
 
 			// Update after moving messages or when new messages are delivered
 			'core.ucp_pm_view_folder_get_pm_from_sql' => 'update', // Update on view folder
-			'core.ucp_pm_view_messsage' => 'update', // Update on view message
-
+			'core.ucp_pm_view_messsage'               => 'update', // Update on view message
 
 			// Add message to index
-			'core.submit_pm_after'  => 'submit',
+			'core.submit_pm_after'                    => 'submit',
 
 			// I wish there was an event after the deletion, but I can work with this
 			// Remove message from index
-			'core.delete_pm_before' => 'remove',
+			'core.delete_pm_before'                   => 'remove',
 
 			'core.ucp_display_module_before' => [
 				['hide_me'], // Hide the search page if search is not enabled
@@ -56,6 +55,7 @@ class main_listener implements EventSubscriberInterface
 
 	/**
 	 * Stores ids of messages moving to inbox
+	 *
 	 * @var int[]
 	 */
 	private static $new_message_ids;
@@ -105,7 +105,7 @@ class main_listener implements EventSubscriberInterface
 		}
 
 		// Skip if not in private message module
-		if (!in_array($this->request->variable('i',''), ['pm','ucp_pm'],true))
+		if (!in_array($this->request->variable('i', ''), ['pm', 'ucp_pm'], true))
 		{
 			return;
 		}
@@ -127,6 +127,7 @@ class main_listener implements EventSubscriberInterface
 					AND p.author_id = u.user_id
 					AND t.folder_id = " . PRIVMSGS_NO_BOX . '
 					AND t.msg_id = p.msg_id';
+
 			$result = $this->db->sql_query($sql);
 			while ($row = $this->db->sql_fetchrow($result))
 			{
@@ -135,9 +136,9 @@ class main_listener implements EventSubscriberInterface
 		}
 
 		// Moving messages; logic copied from ucp_pm.php
-		$mark_option	= $this->request->variable('mark_option', '');
-		$submit_mark	= $this->request->variable('submit_mark', false);
-		$move_pm		= $this->request->variable('move_pm', false);
+		$mark_option = $this->request->variable('mark_option', '');
+		$submit_mark = $this->request->variable('submit_mark', false);
+		$move_pm     = $this->request->variable('move_pm', false);
 
 		// Messages selected for moving from folder view
 		if (!in_array($mark_option, ['mark_important', 'delete_marked']) && $submit_mark)
@@ -145,9 +146,9 @@ class main_listener implements EventSubscriberInterface
 			$move_pm = true;
 		}
 
-		if($move_pm)
+		if ($move_pm)
 		{
-			$move_msg_ids	= $this->request->variable('marked_msg_id', [0]);
+			$move_msg_ids = $this->request->variable('marked_msg_id', [0]);
 			if (count($move_msg_ids))
 			{
 				$ids = empty($ids) ? $move_msg_ids : array_merge($ids, $move_msg_ids);
@@ -197,8 +198,8 @@ class main_listener implements EventSubscriberInterface
 
 	public function remove($event)
 	{
-		$ids = $event['msg_ids'];
-		$uid = $event['user_id'];
+		$ids    = $event['msg_ids'];
+		$uid    = $event['user_id'];
 		$folder = $event['folder_id'];
 
 		if ($this->config['pmsearch_engine'] !== 'sphinx')

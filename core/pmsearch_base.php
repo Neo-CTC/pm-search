@@ -59,8 +59,8 @@ interface pmsearch_base
 	/**
 	 * Un-index one or more messages
 	 *
-	 * @param $ids int[]
-	 * @param $uid int
+	 * @param $ids    int[]
+	 * @param $uid    int
 	 * @param $folder int
 	 *
 	 * @return bool
