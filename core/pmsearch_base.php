@@ -48,7 +48,9 @@ interface pmsearch_base
 	public function delete_index();
 
 	/**
-	 * Update index for a single entry
+	 * Reindex one or more messages
+	 *
+	 * @param $id int|int[]
 	 *
 	 * @return bool
 	 */

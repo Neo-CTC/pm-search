@@ -23,12 +23,12 @@ class main_module
 	/**
 	 * Main UCP module
 	 *
-	 * @param int    $id   The module ID
+	 * @param string $id   The module ID
 	 * @param string $mode The module mode (for example: manage or settings)
 	 *
 	 * @throws \Exception
 	 */
-	public function main(int $id, string $mode)
+	public function main($id, $mode)
 	{
 		// Fetch the controller
 		/** @var \phpbb\request\request $request */

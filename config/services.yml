@@ -26,5 +26,6 @@ services:
             - '@dbal.conn'
             - '@user'
             - '@config'
+            - '@request'
         tags:
             - { name: event.listener }

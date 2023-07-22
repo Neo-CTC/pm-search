@@ -319,13 +319,14 @@ class sphinxSearch implements pmsearch_base
 		while ($rows = $this->db->sql_fetchrowset($result))
 		{
 			// Set query mode to insert
-			$this->sphinxql->insert()->into($this->index_table)
+			$this->sphinxql->replace()->into($this->index_table)
 			;
 
 			// Load rows into query
 			foreach ($rows as $row)
 			{
-				// MySQL returns user_id as a string of ids; explode user_id into an array of integers
+				// MySQL returns user_id as a string of ids
+				// Explode user_id, then convert into an integers
 				$row['user_id'] = array_map('intval', explode(' ', $row['user_id']));
 
 				// Add row to insert query
@@ -429,7 +430,31 @@ class sphinxSearch implements pmsearch_base
 	 */
 	public function update_entry($id)
 	{
-		// TODO: Implement update_entry() method.
+		$this->sphinxql->replace()->into($this->index_table);
+
+		// TODO: Find deleted messages and delete
+		$sql  = "SELECT
+						p.msg_id as id,
+						p.author_id as author_id,
+						GROUP_CONCAT(t.user_id SEPARATOR ' ') as user_id,
+						p.message_time,
+						p.message_subject,
+						p.message_text,
+						GROUP_CONCAT( CONCAT(t.user_id,'_',t.folder_id) SEPARATOR ' ') as folder_id
+						FROM " . PRIVMSGS_TABLE . ' p
+						JOIN ' . PRIVMSGS_TO_TABLE . ' t ON p.msg_id = t.msg_id
+						WHERE t.pm_deleted = 0 AND ' . $this->db->sql_in_set('p.msg_id',$id) . '
+						GROUP BY p.msg_id';
+		$result = $this->db->sql_query($sql);
+
+		while($row = $this->db->sql_fetchrow($result))
+		{
+			// User ids to array of integers
+			$row['user_id'] = array_map('intval', explode(' ', $row['user_id']));
+			$this->sphinxql->set($row);
+		}
+
+		return $this->query_execute();
 	}
 
 	/**
