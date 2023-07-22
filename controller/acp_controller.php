@@ -24,12 +24,13 @@ use phpbb\user;
 class acp_controller
 {
 	protected $config;
+	protected $db;
 	protected $language;
 	protected $log;
 	protected $request;
 	protected $template;
 	protected $user;
-	protected $db;
+
 	private $u_action;
 
 	public function __construct(config $config, language $language, log $log, request $request, template $template, user $user, driver_interface $db)
@@ -41,6 +42,22 @@ class acp_controller
 		$this->template = $template;
 		$this->user     = $user;
 		$this->db       = $db;
+	}
+
+	public function display_options()
+	{
+		// Always add the form key
+		add_form_key('crosstimecafe_pmsearch_acp_settings');
+
+		// Todo list full text options for mysql
+		$this->template->assign_vars([
+			'U_ACTION' => $this->u_action,
+
+			'enabled'     => $this->config['pmsearch_enable'],
+			'search_type' => $this->config['pmsearch_engine'],
+			'host'        => $this->config['pmsearch_host'],
+			'port'        => $this->config['pmsearch_port'],
+		]);
 	}
 
 	public function display_status()
@@ -76,58 +93,6 @@ class acp_controller
 				$this->template->assign_var('MYSQL_ACTIVE', 1);
 			break;
 		}
-	}
-
-	public function display_options()
-	{
-		// Always add the form key
-		add_form_key('crosstimecafe_pmsearch_acp_settings');
-
-		// Todo list full text options for mysql
-		$this->template->assign_vars([
-			'U_ACTION' => $this->u_action,
-
-			'enabled'     => $this->config['pmsearch_enable'],
-			'search_type' => $this->config['pmsearch_engine'],
-			'host'        => $this->config['pmsearch_host'],
-			'port'        => $this->config['pmsearch_port'],
-		]);
-	}
-
-	public function save_settings()
-	{
-		//Validate form
-		if (!check_form_key('crosstimecafe_pmsearch_acp_settings'))
-		{
-			trigger_error($this->language->lang('FORM_INVALID'));
-		}
-
-		//Collect input
-		$type    = $this->request->variable('search_type', 'sphinx');
-		$enabled = $this->request->variable('enable_search', 0);
-		$host    = $this->request->variable('hostname', '127.0.0.1');
-		$port    = $this->request->variable('port', 9306);
-
-		//Validate input
-		// Todo: validate host, maybe
-		$port = ($port > 0 && $port <= 65535) ? $port : 9306;
-
-
-		//Save settings
-		$enabled ? $this->config->set('pmsearch_enable', 1) : $this->config->set('pmsearch_enable', 0);
-
-		if ($type == 'sphinx')
-		{
-			$this->config->set('pmsearch_engine', 'sphinx');
-			$this->config->set('pmsearch_host', $host);
-			$this->config->set('pmsearch_port', $port);
-		}
-		else
-		{
-			$this->config->set('pmsearch_engine', 'mysql');
-		}
-
-		trigger_error($this->language->lang('CONFIG_UPDATED'), E_USER_NOTICE);
 	}
 
 	public function maintenance($action, $engine)
@@ -190,6 +155,42 @@ class acp_controller
 				}
 			break;
 		}
+	}
+
+	public function save_settings()
+	{
+		//Validate form
+		if (!check_form_key('crosstimecafe_pmsearch_acp_settings'))
+		{
+			trigger_error($this->language->lang('FORM_INVALID'));
+		}
+
+		//Collect input
+		$type    = $this->request->variable('search_type', 'sphinx');
+		$enabled = $this->request->variable('enable_search', 0);
+		$host    = $this->request->variable('hostname', '127.0.0.1');
+		$port    = $this->request->variable('port', 9306);
+
+		//Validate input
+		// Todo: validate host, maybe
+		$port = ($port > 0 && $port <= 65535) ? $port : 9306;
+
+
+		//Save settings
+		$enabled ? $this->config->set('pmsearch_enable', 1) : $this->config->set('pmsearch_enable', 0);
+
+		if ($type == 'sphinx')
+		{
+			$this->config->set('pmsearch_engine', 'sphinx');
+			$this->config->set('pmsearch_host', $host);
+			$this->config->set('pmsearch_port', $port);
+		}
+		else
+		{
+			$this->config->set('pmsearch_engine', 'mysql');
+		}
+
+		trigger_error($this->language->lang('CONFIG_UPDATED'), E_USER_NOTICE);
 	}
 
 	public function set_page_url($u_action)

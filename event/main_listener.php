@@ -10,17 +10,37 @@
 
 namespace crosstimecafe\pmsearch\event;
 
+use crosstimecafe\pmsearch\core\sphinxSearch;
+
 use phpbb\config\config;
 use phpbb\db\driver\driver_interface;
 use phpbb\request\request;
 use phpbb\user;
-use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
-use crosstimecafe\pmsearch\core\sphinxSearch;
+use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 
 class main_listener implements EventSubscriberInterface
 {
+	/**
+	 * Stores ids of messages moving to inbox
+	 *
+	 * @var int[]
+	 */
+	private static $new_message_ids;
+	private $config;
+	private $db;
+	private $request;
+	private $user;
+
+	public function __construct(driver_interface $db, user $user, config $config, request $request)
+	{
+		$this->db      = $db;
+		$this->user    = $user;
+		$this->config  = $config;
+		$this->request = $request;
+	}
+
 	public static function getSubscribedEvents()
 	{
 		return [
@@ -46,26 +66,6 @@ class main_listener implements EventSubscriberInterface
 
 			// Todo There is no event to catch a change in folders
 		];
-	}
-
-	private $db;
-	private $user;
-	private $config;
-	private $request;
-
-	/**
-	 * Stores ids of messages moving to inbox
-	 *
-	 * @var int[]
-	 */
-	private static $new_message_ids;
-
-	public function __construct(driver_interface $db, user $user, config $config, request $request)
-	{
-		$this->db      = $db;
-		$this->user    = $user;
-		$this->config  = $config;
-		$this->request = $request;
 	}
 
 	/**
@@ -159,6 +159,20 @@ class main_listener implements EventSubscriberInterface
 		self::$new_message_ids = $ids;
 	}
 
+	public function remove($event)
+	{
+		$ids    = $event['msg_ids'];
+		$uid    = $event['user_id'];
+		$folder = $event['folder_id'];
+
+		if ($this->config['pmsearch_engine'] !== 'sphinx')
+		{
+			return;
+		}
+		$backend = new sphinxSearch($this->config, $this->db);
+		$backend->delete_entry($ids, $uid, $folder);
+	}
+
 	/**
 	 * Index messages when created or edited
 	 *
@@ -178,7 +192,6 @@ class main_listener implements EventSubscriberInterface
 		$sphinx->update_entry($event['data']['msg_id']);
 	}
 
-
 	/**
 	 * Hands off message ids for reindexing
 	 *
@@ -194,19 +207,5 @@ class main_listener implements EventSubscriberInterface
 		}
 		$backend = new sphinxSearch($this->config, $this->db);
 		$backend->update_entry(self::$new_message_ids);
-	}
-
-	public function remove($event)
-	{
-		$ids    = $event['msg_ids'];
-		$uid    = $event['user_id'];
-		$folder = $event['folder_id'];
-
-		if ($this->config['pmsearch_engine'] !== 'sphinx')
-		{
-			return;
-		}
-		$backend = new sphinxSearch($this->config, $this->db);
-		$backend->delete_entry($ids, $uid, $folder);
 	}
 }

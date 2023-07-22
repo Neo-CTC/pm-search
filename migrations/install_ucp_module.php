@@ -14,6 +14,11 @@ use phpbb\db\migration\migration;
 
 class install_ucp_module extends migration
 {
+	public static function depends_on()
+	{
+		return ['\phpbb\db\migration\data\v320\v320'];
+	}
+
 	public function effectively_installed()
 	{
 		$sql = 'SELECT module_id
@@ -26,11 +31,6 @@ class install_ucp_module extends migration
 		$this->db->sql_freeresult($result);
 
 		return $module_id !== false;
-	}
-
-	public static function depends_on()
-	{
-		return ['\phpbb\db\migration\data\v320\v320'];
 	}
 
 	public function update_data()

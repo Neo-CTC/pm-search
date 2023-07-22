@@ -7,13 +7,13 @@ use phpbb\db\driver\driver_interface;
 
 class mysqlSearch implements pmsearch_base
 {
-	private $config;
-	private $db;
-
-	public $message_ids;
-	public $total_found;
 	public $error_msg;
 	public $error_msg_full;
+	public $message_ids;
+	public $total_found;
+
+	private $config;
+	private $db;
 
 	public function __construct(config $config, driver_interface $db)
 	{
@@ -24,44 +24,6 @@ class mysqlSearch implements pmsearch_base
 		$this->total_found    = null;
 		$this->error_msg      = '';
 		$this->error_msg_full = '';
-	}
-
-	/**
-	 * @inheritDoc
-	 */
-	public function ready()
-	{
-		return $this->status_check() && $this->index_check();
-	}
-
-	/**
-	 * @inheritDoc
-	 */
-	public function status()
-	{
-		{
-			$template = [];
-			$status   = $this->status_check();
-
-			// Something is wrong
-			if (!$status)
-			{
-				$template['MYSQL_STATUS'] = $this->error_msg;
-				return $template;
-			}
-
-			// The indexes are ready
-			if ($this->index_check())
-			{
-				$template['MYSQL_STATUS'] = 'ACP_PMSEARCH_READY';
-			}
-			// The indexes are incomplete?
-			else
-			{
-				$template['MYSQL_STATUS'] = 'ACP_PMSEARCH_NO_INDEX';
-			}
-			return $template;
-		}
 	}
 
 	/**
@@ -169,10 +131,9 @@ class mysqlSearch implements pmsearch_base
 	/**
 	 * @inheritDoc
 	 */
-	public function reindex()
+	public function delete_entry($ids, $uid, $folder)
 	{
-		// Drop and rebuild
-		return $this->delete_index() && $this->create_index();
+		// Not required for mysql
 	}
 
 	/**
@@ -196,9 +157,18 @@ class mysqlSearch implements pmsearch_base
 	/**
 	 * @inheritDoc
 	 */
-	public function update_entry($id)
+	public function ready()
 	{
-		// Not required for mysql
+		return $this->status_check() && $this->index_check();
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function reindex()
+	{
+		// Drop and rebuild
+		return $this->delete_index() && $this->create_index();
 	}
 
 	/**
@@ -334,6 +304,59 @@ class mysqlSearch implements pmsearch_base
 	}
 
 	/**
+	 * @inheritDoc
+	 */
+	public function status()
+	{
+		{
+			$template = [];
+			$status   = $this->status_check();
+
+			// Something is wrong
+			if (!$status)
+			{
+				$template['MYSQL_STATUS'] = $this->error_msg;
+				return $template;
+			}
+
+			// The indexes are ready
+			if ($this->index_check())
+			{
+				$template['MYSQL_STATUS'] = 'ACP_PMSEARCH_READY';
+			}
+			// The indexes are incomplete?
+			else
+			{
+				$template['MYSQL_STATUS'] = 'ACP_PMSEARCH_NO_INDEX';
+			}
+			return $template;
+		}
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function update_entry($id)
+	{
+		// Not required for mysql
+	}
+
+	private function index_check(): bool
+	{
+		// Fetch list of all indexes
+		$this->db->sql_query('SHOW INDEX FROM ' . PRIVMSGS_TABLE . ' WHERE Key_name LIKE "pmsearch_%"');
+		$rows = $this->db->sql_fetchrowset();
+		if (count($rows) == 6)
+		{
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	/**
 	 * Check if the indexes still processing
 	 *
 	 * @return bool
@@ -361,28 +384,5 @@ class mysqlSearch implements pmsearch_base
 			}
 		}
 		return true;
-	}
-
-	private function index_check(): bool
-	{
-		// Fetch list of all indexes
-		$this->db->sql_query('SHOW INDEX FROM ' . PRIVMSGS_TABLE . ' WHERE Key_name LIKE "pmsearch_%"');
-		$rows = $this->db->sql_fetchrowset();
-		if (count($rows) == 6)
-		{
-			return true;
-		}
-		else
-		{
-			return false;
-		}
-	}
-
-	/**
-	 * @inheritDoc
-	 */
-	public function delete_entry($ids, $uid, $folder)
-	{
-		// Used for MySql
 	}
 }

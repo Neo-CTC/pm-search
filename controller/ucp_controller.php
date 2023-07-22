@@ -13,6 +13,7 @@ namespace crosstimecafe\pmsearch\controller;
 use crosstimecafe\pmsearch\core\mysqlSearch;
 use crosstimecafe\pmsearch\core\sphinxSearch;
 
+use phpbb\auth\auth;
 use phpbb\config\config;
 use phpbb\db\driver\driver_interface;
 use phpbb\language\language;
@@ -20,7 +21,6 @@ use phpbb\pagination;
 use phpbb\request\request;
 use phpbb\template\template;
 use phpbb\user;
-use phpbb\auth\auth;
 
 /**
  * PM Search UCP controller.
@@ -28,19 +28,19 @@ use phpbb\auth\auth;
  */
 class ucp_controller
 {
-	protected $db;
-	protected $language;
-	protected $request;
-	protected $template;
-	protected $user;
-	protected $pagination;
-	protected $config;
 	protected $auth;
-
+	protected $config;
+	protected $db;
+	protected $ext;
+	protected $language;
+	protected $pagination;
+	protected $request;
+	protected $root;
+	protected $template;
 	protected $u_action;
 	protected $uid;
-	protected $root;
-	protected $ext;
+	protected $user;
+
 	private $name_cache;
 
 	/**
@@ -517,44 +517,6 @@ class ucp_controller
 	}
 
 	/**
-	 * Converts string of usernames to array of user ids
-	 *
-	 * @param string $str String of usernames seperated by commas
-	 *
-	 * @return array
-	 */
-	private function get_ids(string $str): array
-	{
-		$id_array = [];
-		// Split from field and clean the strings
-		$names = explode(',', $str);
-		foreach ($names as &$name)
-		{
-			$name = utf8_clean_string($name);
-			// sql_in_set does its own escaping but just in case...
-			$name = $this->db->sql_escape($name);
-		}
-		unset($name);
-
-		// Fetch user ids from usernames
-		$where  = $this->db->sql_in_set('username_clean', $names);
-		$result = $this->db->sql_query('SELECT user_id FROM ' . USERS_TABLE . ' WHERE ' . $where);
-		while ($row = $this->db->sql_fetchrow($result))
-		{
-			$id_array[] = (int) $row['user_id'];
-		}
-		$this->db->sql_freeresult($result);
-
-		// Stop here if we could not find any user ids
-		if (empty($id_array))
-		{
-			return [0];
-			//trigger_error('NO_SEARCH_RESULTS');
-		}
-		return $id_array;
-	}
-
-	/**
 	 * Add links and color to an array of to and bcc usernames.
 	 * Copied from functions_privmsgs.php->write_pm_addresses()
 	 *
@@ -595,5 +557,43 @@ class ucp_controller
 			}
 		}
 		return implode(' ', $colorized);
+	}
+
+	/**
+	 * Converts string of usernames to array of user ids
+	 *
+	 * @param string $str String of usernames seperated by commas
+	 *
+	 * @return array
+	 */
+	private function get_ids(string $str): array
+	{
+		$id_array = [];
+		// Split from field and clean the strings
+		$names = explode(',', $str);
+		foreach ($names as &$name)
+		{
+			$name = utf8_clean_string($name);
+			// sql_in_set does its own escaping but just in case...
+			$name = $this->db->sql_escape($name);
+		}
+		unset($name);
+
+		// Fetch user ids from usernames
+		$where  = $this->db->sql_in_set('username_clean', $names);
+		$result = $this->db->sql_query('SELECT user_id FROM ' . USERS_TABLE . ' WHERE ' . $where);
+		while ($row = $this->db->sql_fetchrow($result))
+		{
+			$id_array[] = (int) $row['user_id'];
+		}
+		$this->db->sql_freeresult($result);
+
+		// Stop here if we could not find any user ids
+		if (empty($id_array))
+		{
+			return [0];
+			//trigger_error('NO_SEARCH_RESULTS');
+		}
+		return $id_array;
 	}
 }

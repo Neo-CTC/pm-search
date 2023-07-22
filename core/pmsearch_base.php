@@ -13,48 +13,11 @@ namespace crosstimecafe\pmsearch\core;
 interface pmsearch_base
 {
 	/**
-	 * Check if search backend is ready for use.
-	 *
-	 * @return bool
-	 */
-	public function ready();
-
-	/**
-	 * Status of search backend
-	 *
-	 * @return array
-	 */
-	public function status();
-
-	/**
 	 * Create search index
 	 *
 	 * @return bool
 	 */
 	public function create_index();
-
-	/**
-	 * Drop and recreate index
-	 *
-	 * @return bool
-	 */
-	public function reindex();
-
-	/**
-	 * Delete index
-	 *
-	 * @return bool
-	 */
-	public function delete_index();
-
-	/**
-	 * Reindex one or more messages
-	 *
-	 * @param $id int|int[]
-	 *
-	 * @return bool
-	 */
-	public function update_entry($id);
 
 	/**
 	 * Un-index one or more messages
@@ -66,6 +29,27 @@ interface pmsearch_base
 	 * @return bool
 	 */
 	public function delete_entry($ids, $uid, $folder);
+
+	/**
+	 * Delete index
+	 *
+	 * @return bool
+	 */
+	public function delete_index();
+
+	/**
+	 * Check if search backend is ready for use.
+	 *
+	 * @return bool
+	 */
+	public function ready();
+
+	/**
+	 * Drop and recreate index
+	 *
+	 * @return bool
+	 */
+	public function reindex();
 
 	/**
 	 * Search index for matching terms
@@ -84,4 +68,20 @@ interface pmsearch_base
 	 * @return false|array
 	 */
 	public function search(int $uid, array $indexes, string $keywords, array $from, array $to, array $folders, string $order, string $direction, int $offset);
+
+	/**
+	 * Status of search backend
+	 *
+	 * @return array
+	 */
+	public function status();
+
+	/**
+	 * Reindex one or more messages
+	 *
+	 * @param $id int|int[]
+	 *
+	 * @return bool
+	 */
+	public function update_entry($id);
 }
