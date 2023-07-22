@@ -57,6 +57,17 @@ interface pmsearch_base
 	public function update_entry($id);
 
 	/**
+	 * Un-index one or more messages
+	 *
+	 * @param $ids int[]
+	 * @param $uid int
+	 * @param $folder int
+	 *
+	 * @return bool
+	 */
+	public function delete_entry($ids, $uid, $folder);
+
+	/**
 	 * Search index for matching terms
 	 * Returns array of matching message ids
 	 *

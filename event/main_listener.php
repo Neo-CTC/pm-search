@@ -185,7 +185,6 @@ class main_listener implements EventSubscriberInterface
 	 */
 	public function update()
 	{
-		// Todo what if the message was deleted by the sender before it could be viewed by the recipient
 		// Todo reindex message text on edit
 		// By this point all messages should be done moving around, update their entries
 		if (!self::$new_message_ids || $this->config['pmsearch_engine'] !== 'sphinx')
@@ -198,6 +197,15 @@ class main_listener implements EventSubscriberInterface
 
 	public function remove($event)
 	{
-		// TODO: Delete if last user, update if not last user
+		$ids = $event['msg_ids'];
+		$uid = $event['user_id'];
+		$folder = $event['folder_id'];
+
+		if ($this->config['pmsearch_engine'] !== 'sphinx')
+		{
+			return;
+		}
+		$backend = new sphinxSearch($this->config, $this->db);
+		$backend->delete_entry($ids, $uid, $folder);
 	}
 }

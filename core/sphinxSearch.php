@@ -432,7 +432,6 @@ class sphinxSearch implements pmsearch_base
 	{
 		$this->sphinxql->replace()->into($this->index_table);
 
-		// TODO: Find deleted messages and delete
 		$sql  = "SELECT
 						p.msg_id as id,
 						p.author_id as author_id,
@@ -547,5 +546,73 @@ class sphinxSearch implements pmsearch_base
 		$this->total_found = $meta_data['Value'];
 
 		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function delete_entry($ids, $uid, $folder)
+	{
+		// Undelivered messages, purge them
+		if ($folder === PRIVMSGS_OUTBOX)
+		{
+			$this->sphinxql->delete()->from($this->index_table);
+			$this->sphinxql->where('id', 'IN', $ids);
+			$this->query_execute();
+		}
+
+
+		else
+		{
+			$reindex = false;
+
+			// Build array of ids to delete
+			// If message id is found, delete id from deleted ids
+			$delete_ids = array_flip($ids);
+
+			// Fetch messages without the current user
+			$sql =
+				"SELECT
+					p.msg_id as id,
+					p.author_id as author_id,
+					GROUP_CONCAT(t.user_id SEPARATOR ' ') as user_id,
+					p.message_time,
+					p.message_subject,
+					p.message_text,
+					GROUP_CONCAT( CONCAT(t.user_id,'_',t.folder_id) SEPARATOR ' ') as folder_id
+				FROM " . PRIVMSGS_TABLE . " p
+				JOIN " . PRIVMSGS_TO_TABLE . " t ON p.msg_id = t.msg_id
+				WHERE 
+					t.pm_deleted = 0 AND
+					" . $this->db->sql_in_set('p.msg_id', $ids) ." AND
+					t.user_id != " . $uid . "
+				GROUP BY p.msg_id";
+			$result = $this->db->sql_query($sql);
+
+			$this->sphinxql->replace()->into($this->index_table);
+			while($row = $this->db->sql_fetchrow($result))
+			{
+				// Message not deleted for everyone
+				unset($delete_ids[$row['id']]);
+
+				// User ids to array of integers
+				$row['user_id'] = array_map('intval', explode(' ', $row['user_id']));
+				$this->sphinxql->set($row);
+				$reindex = true;
+			}
+
+			// Found stuff to update
+			if($reindex)
+			{
+				$this->query_execute();
+			}
+
+			if ($delete_ids)
+			{
+				$this->sphinxql->delete()->from($this->index_table) ;
+				$this->sphinxql->where('id', 'IN', array_keys($delete_ids));
+				$this->query_execute();
+			}
+		}
 	}
 }
