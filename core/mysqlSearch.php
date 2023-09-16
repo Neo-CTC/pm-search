@@ -68,6 +68,7 @@ class mysqlSearch implements pmsearch_base
 				$port   = null;
 			}
 		}
+		// TODO: handle connection errors
 		mysqli_real_connect($id, $dbhost, $dbuser, $dbpasswd, $dbname, $port, $socket);
 
 		// Update collation to a case-insensitive type
@@ -197,6 +198,13 @@ class mysqlSearch implements pmsearch_base
 		// Prep keywords for matching
 		if ($keywords)
 		{
+			// Find unmatched double quotes
+			if (substr_count($keywords, '"') % 2 == 1)
+			{
+				$this->error_msg = 'UCP_PMSEARCH_ERR_QUERY';
+				return false;
+			}
+
 			// Add search operator to each keyword
 			$match = [];
 			foreach (explode(' ', $keywords) as $v)
@@ -212,18 +220,12 @@ class mysqlSearch implements pmsearch_base
 					return false;
 				}
 
-				// Find unmatched double quotes
-				if (substr_count($v, '"') % 2 == 1)
-				{
-					$this->error_msg = 'UCP_PMSEARCH_ERR_QUERY';
-					return false;
-				}
-
 				// Let phpBB handle any escaping
 				$v = $this->db->sql_escape($v);
 
 				// Add "must include word" search operator (+) to each keyword
 				// Unless the "must not include word" operator (-) is found
+				// Technically we don't need a (+) if the word is part of a quoted phrase but mysql don't care
 				$match[] = (substr($v, 0, 1) != '-') ? '+' . $v : $v;
 			}
 			// Boolean mode enables text operators

@@ -99,6 +99,8 @@ class ucp_controller
 		// Todo get minimum characters
 		// Todo max return limits
 		// Todo pagination jump box not working
+		// TODO: search by time frame
+		// TODO: more sorting types
 
 		/*
 		 *

@@ -90,6 +90,8 @@ class sphinxSearch implements pmsearch_base
 	 */
 	public function delete_entry($ids, $uid, $folder)
 	{
+		// TODO: Don't run if not ready
+
 		// Undelivered messages, purge them
 		if ($folder === PRIVMSGS_OUTBOX)
 		{
@@ -461,6 +463,8 @@ class sphinxSearch implements pmsearch_base
 	 */
 	public function update_entry($id)
 	{
+		// TODO: Don't run if not ready
+
 		$this->sphinxql
 			->replace()
 			->into($this->index_table);
