@@ -150,4 +150,55 @@
 	</fieldset>
 {% endif %}
 
+<h2>PostgreSQL Fulltext{% if POSTGRES_ACTIVE %} ({{ lang('ACTIVE') }}){% endif %}</h2>
+<div class="lside">
+	<table class="table2 zebra-table no-header" data-no-responsive-header="true">
+		<thead>
+			<tr>
+				<th>{{ lang('STATISTIC') }}</th>
+				<th>{{ lang('VALUE') }}</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td class="tabled">{{ lang('ACP_PMSEARCH_STATUS') ~ lang('COLON') }}</td>
+				<td class="tabled">
+					<strong>{{ POSTGRES_STATUS }}</strong>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+</div>
+
+{% if not POSTGRES_SKIP %}
+	<fieldset>
+		<legend>PostgreSQL Fulltext {{ lang('ACP_PMSEARCH_INDEX_COMMANDS') }}</legend>
+		<form id="postgres_action_reindex" method="post" action="{{ U_ACTION }}" data-ajax="true">
+			<dl>
+				<dt>
+					<label for="postgres_reindex">{{ lang('ACP_PMSEARCH_REINDEX') }}</label>
+				</dt>
+				<dd>
+					<input type="hidden" name="action" value="create"/>
+					<input type="hidden" name="engine" value="postgres"/>
+					<input class="button2" type="submit" id="postgres_reindex" value="{L_RUN}"/>
+				</dd>
+			</dl>
+		</form>
+		<form id="postgres_action_delete" method="post" action="{{ U_ACTION }}" data-ajax="true">
+			<dl>
+				<dt>
+					<label for="postgres_delete">{{ lang('ACP_PMSEARCH_ACTION_DROP') }}</label><br/>
+					<span>&nbsp;</span>
+				</dt>
+				<dd>
+					<input type="hidden" name="action" value="delete"/>
+					<input type="hidden" name="engine" value="postgres"/>
+					<input class="button2" type="submit" id="postgres_delete" value="{L_RUN}"/>
+				</dd>
+			</dl>
+		</form>
+	</fieldset>
+{% endif %}
+
 {% include 'overall_footer.html' %}

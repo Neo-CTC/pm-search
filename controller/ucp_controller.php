@@ -12,6 +12,7 @@ namespace crosstimecafe\pmsearch\controller;
 
 use crosstimecafe\pmsearch\core\mysqlSearch;
 use crosstimecafe\pmsearch\core\sphinxSearch;
+use crosstimecafe\pmsearch\core\postgresSearch;
 
 use phpbb\auth\auth;
 use phpbb\config\config;
@@ -201,6 +202,9 @@ class ucp_controller
 			case 'mysql':
 				$backend = new mysqlSearch($this->config, $this->db);
 			break;
+			case 'postgres':
+				$backend = new postgresSearch($this->config, $this->db);
+			break;
 			default:
 				trigger_error($this->language->lang('UCP_PMSEARCH_ERR_GENERIC'));
 				return;
@@ -259,7 +263,7 @@ class ucp_controller
 					],
 				],
 				'WHERE'     => $sql_where,
-				'GROUP_BY'  => 'p.msg_id',
+				'GROUP_BY'  => 'p.msg_id, u.user_id', // We don't need to group the user_id but PostgreSQL complains if we don't
 				'ORDER_BY'  => $order . ' ' . $direction,
 			];
 			$sql       = $this->db->sql_build_query('SELECT', $sql_array);
@@ -423,7 +427,7 @@ class ucp_controller
 			// Custom folders
 			$sql_where = $this->db->sql_in_set('folder_id', $folders);
 			$result    = $this->db->sql_query('SELECT folder_name FROM ' . PRIVMSGS_FOLDER_TABLE . ' WHERE user_id = ' . $this->uid . ' AND ' . $sql_where);
-			foreach ($result as $row)
+			while($row = $this->db->sql_fetchrow($result))
 			{
 				$folder_list .= $row['folder_name'];
 			}
@@ -482,10 +486,10 @@ class ucp_controller
 		]);
 
 		// Custom folders
-		$folders = $this->db->sql_query('SELECT folder_id, folder_name FROM ' . PRIVMSGS_FOLDER_TABLE . ' WHERE user_id = ' . $this->uid);
-		foreach ($folders as $f)
+		$results = $this->db->sql_query('SELECT folder_id, folder_name FROM ' . PRIVMSGS_FOLDER_TABLE . ' WHERE user_id = ' . $this->uid);
+		while ($row = $this->db->sql_fetchrow($results))
 		{
-			$this->template->assign_block_vars('folder_select', ['id' => $f['folder_id'], 'name' => $f['folder_name']]);
+			$this->template->assign_block_vars('folder_select', ['id' => $row['folder_id'], 'name' => $row['folder_name']]);
 		}
 
 		// Sort options

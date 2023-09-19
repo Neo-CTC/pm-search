@@ -30,7 +30,9 @@
 					<option value="mysql"{% if search_type == 'mysql' %} selected{% endif %} data-toggle-setting="#mysql_settings">
 						MySQL
 					</option>
-					<!-- <option value="mysql"{% if search_type == 'postgresql' %} selected{% endif %} data-toggle-setting="#postgresql_settings">PostgreSQL</option> -->
+					<option value="postgres"{% if search_type == 'postgres' %} selected{% endif %} data-toggle-setting="#postgres_settings">
+						PostgreSQL
+					</option>
 				</select>
 			</dd>
 		</dl>
@@ -74,6 +76,11 @@
 
 	<fieldset id="mysql_settings">
 		<legend>MySQL</legend>
+		No options available at this time
+	</fieldset>
+
+	<fieldset id="postgres_settings">
+		<legend>PostgreSQL</legend>
 		No options available at this time
 	</fieldset>
 

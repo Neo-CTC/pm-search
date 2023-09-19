@@ -11,6 +11,7 @@
 namespace crosstimecafe\pmsearch\controller;
 
 use crosstimecafe\pmsearch\core\mysqlSearch;
+use crosstimecafe\pmsearch\core\postgresSearch;
 use crosstimecafe\pmsearch\core\sphinxSearch;
 use phpbb\config\config;
 use phpbb\db\driver\driver_interface;
@@ -84,6 +85,21 @@ class acp_controller
 			$this->template->assign_var('MYSQL_SKIP', 1);
 		}
 
+		if ($this->db->get_sql_layer() == 'postgres')
+		{
+			$backend    = new postgresSearch($this->config, $this->db);
+			$template = $backend->status();
+
+			// Status to local language
+			$template['POSTGRES_STATUS'] = $this->language->lang($template['POSTGRES_STATUS']);
+			$this->template->assign_vars($template);
+		}
+		else
+		{
+			$this->template->assign_var('POSTGRES_STATUS', $this->language->lang('FULLTEXT_POSTGRES_INCOMPATIBLE_DATABASE'));
+			$this->template->assign_var('POSTGRES_SKIP', 1);
+		}
+
 		switch ($this->config['pmsearch_engine'])
 		{
 			case 'sphinx':
@@ -91,6 +107,9 @@ class acp_controller
 			break;
 			case 'mysql':
 				$this->template->assign_var('MYSQL_ACTIVE', 1);
+			break;
+			case 'postgres':
+				$this->template->assign_var('POSTGRES_ACTIVE', 1);
 			break;
 		}
 	}
@@ -106,6 +125,9 @@ class acp_controller
 			break;
 			case 'mysql':
 				$backend = new mysqlSearch($this->config, $this->db);
+			break;
+			case 'postgres':
+				$backend = new postgresSearch($this->config, $this->db);
 			break;
 			default:
 				return;
@@ -179,15 +201,19 @@ class acp_controller
 		//Save settings
 		$enabled ? $this->config->set('pmsearch_enable', 1) : $this->config->set('pmsearch_enable', 0);
 
-		if ($type == 'sphinx')
+		switch ($type)
 		{
-			$this->config->set('pmsearch_engine', 'sphinx');
-			$this->config->set('pmsearch_host', $host);
-			$this->config->set('pmsearch_port', $port);
-		}
-		else
-		{
-			$this->config->set('pmsearch_engine', 'mysql');
+			case 'sphinx':
+				$this->config->set('pmsearch_engine', 'sphinx');
+				$this->config->set('pmsearch_host', $host);
+				$this->config->set('pmsearch_port', $port);
+			break;
+			case 'mysql':
+				$this->config->set('pmsearch_engine', 'mysql');
+			break;
+			case 'postgres':
+				$this->config->set('pmsearch_engine', 'postgres');
+			break;
 		}
 
 		trigger_error($this->language->lang('CONFIG_UPDATED'), E_USER_NOTICE);

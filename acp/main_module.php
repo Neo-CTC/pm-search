@@ -60,7 +60,7 @@ class main_module
 				case 'delete':
 				case 'create':
 					// Invalid engine, stop here
-					if (!$engine || !in_array($engine, ['sphinx', 'mysql']))
+					if (!$engine || !in_array($engine, ['sphinx', 'mysql','postgres']))
 					{
 						trigger_error($language->lang('ERROR'), E_USER_WARNING);
 					}

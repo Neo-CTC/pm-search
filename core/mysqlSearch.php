@@ -235,14 +235,7 @@ class mysqlSearch implements pmsearch_base
 		// Search for messages sent from these authors
 		if ($from)
 		{
-			if (count($from) == 1)
-			{
-				$where[] = 'p.author_id = ' . $from[0];
-			}
-			else
-			{
-				$where[] = 'p.author_id IN (' . implode(',', $from) . ')';
-			}
+			$where[] = $this->db->sql_in_set('p.author_id',$from);
 		}
 
 		// Search for messages sent to these recipients
@@ -271,8 +264,7 @@ class mysqlSearch implements pmsearch_base
 
 		if ($folders)
 		{
-			// TODO I don't think this is right. Test and fix
-			$where[] = 't.folder_id in (' . implode(',', $folders) . ')';
+			$where[] = $this->db->sql_in_set('t.folder_id', $folders);
 		}
 
 		// Combine the where
@@ -346,8 +338,8 @@ class mysqlSearch implements pmsearch_base
 	private function index_check(): bool
 	{
 		// Fetch list of all indexes
-		$this->db->sql_query('SHOW INDEX FROM ' . PRIVMSGS_TABLE . ' WHERE Key_name LIKE "pmsearch_%"');
-		$rows = $this->db->sql_fetchrowset();
+		$result = $this->db->sql_query('SHOW INDEX FROM ' . PRIVMSGS_TABLE . ' WHERE Key_name LIKE "pmsearch_%"');
+		$rows = $this->db->sql_fetchrowset($result);
 		if (count($rows) == 6)
 		{
 			return true;
