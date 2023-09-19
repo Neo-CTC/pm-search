@@ -102,6 +102,7 @@ class ucp_controller
 		// Todo pagination jump box not working
 		// TODO: search by time frame
 		// TODO: more sorting types
+		// TODO: filter out operators for highlighting
 
 		/*
 		 *
@@ -285,7 +286,6 @@ class ucp_controller
 				 *
 				 */
 
-
 				$row['message_subject'] = censor_text($row['message_subject']);
 				if ($row['bbcode_uid'])
 				{
@@ -294,6 +294,26 @@ class ucp_controller
 				}
 				$parse_flags         = ($row['bbcode_bitfield'] ? OPTION_FLAG_BBCODE : 0) | OPTION_FLAG_SMILIES;
 				$row['message_text'] = generate_text_for_display($row['message_text'], $row['bbcode_uid'], $row['bbcode_bitfield'], $parse_flags, true);
+
+				// Todo needs testing with operators, non A-z characters, numbers, hyphens, phrase matching
+				// Todo doesn't highlight on non normalized words, e.g. cat vs cats
+				// Add highlighting, as see in search.php
+				$hilit = phpbb_clean_search_string(str_replace(['+', '-', '|', '(', ')', '&quot;'], ' ', $keywords));
+				$hilit = str_replace(' ', '|', $hilit);
+				if ($hilit)
+				{
+					// Remove bad highlights
+					$hilit_array = array_filter(explode('|', $hilit), 'strlen');
+					foreach ($hilit_array as $key => $value)
+					{
+						$hilit_array[$key] = phpbb_clean_search_string($value);
+						$hilit_array[$key] = str_replace('\*', '\w*?', preg_quote($hilit_array[$key], '#'));
+						$hilit_array[$key] = preg_replace('#(^|\s)\\\\w\*\?(\s|$)#', '$1\w+?$2', $hilit_array[$key]);
+					}
+					$hilit = implode('|', $hilit_array);
+				}
+				$row['message_text']    = preg_replace('#(?!<.*)(?<!\w)(' . $hilit . ')(?!\w|[^<>]*(?:</s(?:cript|tyle))?>)#isu', '<span class="posthilit">$1</span>', $row['message_text']);
+				$row['message_subject'] = preg_replace('#(?!<.*)(?<!\w)(' . $hilit . ')(?!\w|[^<>]*(?:</s(?:cript|tyle))?>)#isu', '<span class="posthilit">$1</span>', $row['message_subject']);
 
 
 				/*
@@ -427,7 +447,7 @@ class ucp_controller
 			// Custom folders
 			$sql_where = $this->db->sql_in_set('folder_id', $folders);
 			$result    = $this->db->sql_query('SELECT folder_name FROM ' . PRIVMSGS_FOLDER_TABLE . ' WHERE user_id = ' . $this->uid . ' AND ' . $sql_where);
-			while($row = $this->db->sql_fetchrow($result))
+			while ($row = $this->db->sql_fetchrow($result))
 			{
 				$folder_list .= $row['folder_name'];
 			}
