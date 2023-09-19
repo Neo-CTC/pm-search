@@ -59,6 +59,45 @@ class acp_controller
 			'host'        => $this->config['pmsearch_host'],
 			'port'        => $this->config['pmsearch_port'],
 		]);
+
+		$this->template->assign_block_vars_array('search_types', [
+			[
+				'value'    => 'sphinx',
+				'name'     => 'Sphinx',
+				'selected' => $this->config['pmsearch_engine'] == 'sphinx',
+			],
+			[
+				'value'    => 'mysql',
+				'name'     => 'MySQL',
+				'selected' => $this->config['pmsearch_engine'] == 'mysql',
+				'disabled' => $this->db->get_sql_layer() != 'mysql',
+			],
+			[
+				'value'    => 'postgres',
+				'name'     => 'PostgreSQL',
+				'selected' => $this->config['pmsearch_engine'] == 'postgres',
+				'disabled' => $this->db->get_sql_layer() != 'postgres',
+			],
+		]);
+
+		switch ($this->db->get_sql_layer())
+		{
+			case 'mysql':
+				$this->template->assign_var('db_mysql', true);
+			break;
+
+			case 'postgres':
+				$this->template->assign_var('db_postgres', true);
+
+				// List text settings for postgres
+				$result = $this->db->sql_query('SELECT cfgname AS ts_name FROM pg_ts_config');
+				while ($row = $this->db->sql_fetchrow($result))
+				{
+					$this->template->assign_block_vars('postgres_ts_names', ['name' => $row['ts_name']]);
+				}
+				$this->template->assign_var('postgres_ts_name_current', $this->config['fulltext_postgres_ts_name']);
+			break;
+		}
 	}
 
 	public function display_status()
@@ -87,7 +126,7 @@ class acp_controller
 
 		if ($this->db->get_sql_layer() == 'postgres')
 		{
-			$backend    = new postgresSearch($this->config, $this->db);
+			$backend  = new postgresSearch($this->config, $this->db);
 			$template = $backend->status();
 
 			// Status to local language
@@ -187,15 +226,9 @@ class acp_controller
 			trigger_error($this->language->lang('FORM_INVALID'));
 		}
 
-		//Collect input
+		//Collect common input
 		$type    = $this->request->variable('search_type', 'sphinx');
 		$enabled = $this->request->variable('enable_search', 0);
-		$host    = $this->request->variable('hostname', '127.0.0.1');
-		$port    = $this->request->variable('port', 9306);
-
-		//Validate input
-		// Todo: validate host, maybe
-		$port = ($port > 0 && $port <= 65535) ? $port : 9306;
 
 
 		//Save settings
@@ -203,7 +236,15 @@ class acp_controller
 
 		switch ($type)
 		{
+			// Todo error handling
 			case 'sphinx':
+				// Todo: validate host, maybe
+				$host = $this->request->variable('hostname', '127.0.0.1');
+
+				//Validate input
+				$port = $this->request->variable('port', 9306);
+				$port = ($port > 0 && $port <= 65535) ? $port : 9306;
+
 				$this->config->set('pmsearch_engine', 'sphinx');
 				$this->config->set('pmsearch_host', $host);
 				$this->config->set('pmsearch_port', $port);
@@ -212,6 +253,15 @@ class acp_controller
 				$this->config->set('pmsearch_engine', 'mysql');
 			break;
 			case 'postgres':
+
+				// Validate settings
+				$ts_name = $this->request->variable('postgres_ts_name', 'simple');
+				$result  = $this->db->sql_query("SELECT cfgname AS ts_name FROM pg_ts_config WHERE cfgname = '" . $this->db->sql_escape($ts_name) . "'");
+				if ($this->db->sql_fetchrow($result))
+				{
+					$this->config->set('fulltext_postgres_ts_name', $ts_name);
+				}
+
 				$this->config->set('pmsearch_engine', 'postgres');
 			break;
 		}

@@ -30,7 +30,7 @@ class postgresSearch implements pmsearch_base
 
 		global $table_prefix;
 		$this->index_subject = $table_prefix . "pmsearch_s";
-		$this->index_text = $table_prefix . "pmsearch_t";
+		$this->index_text    = $table_prefix . "pmsearch_t";
 	}
 
 	/**
@@ -45,10 +45,9 @@ class postgresSearch implements pmsearch_base
 		// 	return false;
 		// }
 
-		// Index the things
-		// Todo more language support
-		$sql[] = "CREATE INDEX ".$this->index_text . " on " . PRIVMSGS_TABLE . " USING gin(to_tsvector('english', message_text))";
-		$sql[] = "CREATE INDEX ".$this->index_subject ." on " . PRIVMSGS_TABLE . " USING gin(to_tsvector('english', message_subject))";
+		// Index all the things
+		$sql[] = "CREATE INDEX " . $this->index_text . " on " . PRIVMSGS_TABLE . " USING gin(to_tsvector('" . $this->config['fulltext_postgres_ts_name'] . "', message_text))";
+		$sql[] = "CREATE INDEX " . $this->index_subject . " on " . PRIVMSGS_TABLE . " USING gin(to_tsvector('" . $this->config['fulltext_postgres_ts_name'] . "', message_subject))";
 
 		foreach ($sql as $value)
 		{
@@ -78,10 +77,10 @@ class postgresSearch implements pmsearch_base
 		// 	return false;
 		// }
 
-		$sql[] = 'DROP INDEX IF EXISTS '.$this->index_subject;
-		$sql[] = 'DROP INDEX IF EXISTS '.$this->index_text;
+		$sql[] = 'DROP INDEX IF EXISTS ' . $this->index_subject;
+		$sql[] = 'DROP INDEX IF EXISTS ' . $this->index_text;
 
-		foreach($sql as $value)
+		foreach ($sql as $value)
 		{
 			$this->db->sql_query($value);
 		}
@@ -139,20 +138,19 @@ class postgresSearch implements pmsearch_base
 			// }
 
 			// Keywords to AND Keywords
-			$query_keywords = implode(' & ',explode(' ', $keywords));
+			$query_keywords = implode(' & ', explode(' ', $keywords));
 
 			// Escape
 			$query_keywords = $this->db->sql_escape($query_keywords);
 
 			// Build match query
 			$ts_query = '';
-			foreach ($indexes as $k=>$v)
+			foreach ($indexes as $k => $v)
 			{
 				// Matching more than one index
 				$ts_query .= $k != 0 ? ' OR ' : '';
 
-				$ts_query .= "to_tsvector('english', " . $v . ") @@ to_tsquery('english', '". $query_keywords ."')";
-
+				$ts_query .= "to_tsvector('" . $this->config['fulltext_postgres_ts_name'] . "', " . $v . ") @@ to_tsquery('" . $this->config['fulltext_postgres_ts_name'] . "', '" . $query_keywords . "')";
 			}
 			$where[] = '(' . $ts_query . ')';
 		}
@@ -160,7 +158,7 @@ class postgresSearch implements pmsearch_base
 		// Search for messages sent from these authors
 		if ($from)
 		{
-			$where[] = $this->db->sql_in_set('p.author_id',$from);
+			$where[] = $this->db->sql_in_set('p.author_id', $from);
 		}
 
 		// Search for messages sent to these recipients
@@ -195,12 +193,12 @@ class postgresSearch implements pmsearch_base
 		// Combine the where
 		$where = implode(' AND ', $where);
 
-		$sql = 'SELECT DISTINCT p.msg_id id, '.$order.'
+		$sql = 'SELECT DISTINCT p.msg_id id, ' . $order . '
 				FROM ' . PRIVMSGS_TABLE . ' p 
 				JOIN ' . PRIVMSGS_TO_TABLE . ' t ON p.msg_id = t.msg_id
 				WHERE ' . $where . '
 				ORDER BY ' . $order . ' ' . $direction . '
-				LIMIT ' . $this->config['posts_per_page'] . ' OFFSET '. $offset;
+				LIMIT ' . $this->config['posts_per_page'] . ' OFFSET ' . $offset;
 
 		// Get matching message ids
 		$result = $this->db->sql_query($sql);
@@ -263,8 +261,8 @@ class postgresSearch implements pmsearch_base
 	private function index_check(): bool
 	{
 		// Fetch list of all indexes
-		$result = $this->db->sql_query("select indexname from pg_indexes where tablename = '".PRIVMSGS_TABLE."' and ". $this->db->sql_in_set('indexname',[$this->index_text,$this->index_subject]));
-		$rows = $this->db->sql_fetchrowset($result);
+		$result = $this->db->sql_query("select indexname from pg_indexes where tablename = '" . PRIVMSGS_TABLE . "' and " . $this->db->sql_in_set('indexname', [$this->index_text, $this->index_subject]));
+		$rows   = $this->db->sql_fetchrowset($result);
 		if (count($rows) == 2)
 		{
 			return true;

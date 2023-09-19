@@ -23,16 +23,11 @@
 			</dt>
 			<dd>
 				<select id="search_type" name="search_type" data-togglable-settings="true">
-					<!-- Todo get db type -->
-					<option value="sphinx"{% if search_type == 'sphinx' %} selected{% endif %} data-toggle-setting="#sphinx_settings">
-						Sphinx
+					{% for s_type in search_types  %}
+					<option value="{{ s_type.value }}"{% if s_type.selected %} selected{% endif %}{% if s_type.disabled %} disabled{% endif %} data-toggle-setting="#{{ s_type.value }}_settings">
+						{{ s_type.name }}
 					</option>
-					<option value="mysql"{% if search_type == 'mysql' %} selected{% endif %} data-toggle-setting="#mysql_settings">
-						MySQL
-					</option>
-					<option value="postgres"{% if search_type == 'postgres' %} selected{% endif %} data-toggle-setting="#postgres_settings">
-						PostgreSQL
-					</option>
+					{% endfor %}
 				</select>
 			</dd>
 		</dl>
@@ -57,8 +52,8 @@
 		<legend>Sphinx</legend>
 		<dl>
 			<dt>
-				<label for="sphinx_hostname">{{ lang('FULLTEXT_SPHINX_HOST') }}</label>
-				<br/><span>{{ lang('FULLTEXT_SPHINX_HOST_EXPLAIN') }}</span>
+				<label for="sphinx_hostname">{{ lang('FULLTEXT_SPHINX_HOST') }}</label><br/>
+				<span>{{ lang('FULLTEXT_SPHINX_HOST_EXPLAIN') }}</span>
 			</dt>
 			<dd>
 				<input type="text" placeholder="127.0.0.1" id="sphinx_hostname" name="hostname" value="{{ host }}"/>
@@ -66,23 +61,40 @@
 		</dl>
 		<dl>
 			<dt>
-				<label for="sphinx_port">{{ lang('FULLTEXT_SPHINX_PORT') }}</label>
-				<br/><span>{{ lang('FULLTEXT_SPHINX_PORT_EXPLAIN') }}</span></dt>
+				<label for="sphinx_port">{{ lang('FULLTEXT_SPHINX_PORT') }}</label><br/>
+				<span>{{ lang('FULLTEXT_SPHINX_PORT_EXPLAIN') }}</span>
+			</dt>
 			<dd>
 				<input type="number" min="1" max="65535" placeholder="9306" id="sphinx_port" name="port" value="{{ port }}"/>
 			</dd>
 		</dl>
 	</fieldset>
 
+	{% if db_mysql %}
 	<fieldset id="mysql_settings">
 		<legend>MySQL</legend>
 		No options available at this time
 	</fieldset>
+	{% endif %}
 
+	{% if db_postgres %}
 	<fieldset id="postgres_settings">
 		<legend>PostgreSQL</legend>
-		No options available at this time
+		<dl>
+			<dt>
+				<label for="postgres_tsn">{{ lang('FULLTEXT_POSTGRES_TS_NAME') }}</label><br/>
+				<span>{{ lang('FULLTEXT_POSTGRES_TS_NAME_EXPLAIN') }}</span>
+			</dt>
+			<dd>
+				<select id="postgres_tsn" name="postgres_ts_name">
+				{% for ts_name in postgres_ts_names %}
+					<option value="{{ ts_name.name }}"{% if ts_name.name == postgres_ts_name_current %} selected{% endif %}>{{ ts_name.name }}</option>
+				{% endfor %}
+				</select>
+			</dd>
+		</dl>
 	</fieldset>
+	{% endif   %}
 
 	<fieldset>
 		<legend>{{ lang('ACP_SUBMIT_CHANGES') }}</legend>
