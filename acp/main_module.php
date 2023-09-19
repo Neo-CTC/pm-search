@@ -30,6 +30,9 @@ class main_module
 		/** @var \crosstimecafe\pmsearch\controller\acp_controller $acp_controller */
 		$acp_controller = $phpbb_container->get('crosstimecafe.pmsearch.controller.acp');
 
+		// You are here → X
+		$acp_controller->set_page_url($this->u_action);
+
 		/** @var \phpbb\language\language $language */
 		$language = $phpbb_container->get('language');
 		$language->add_lang('acp/search');
@@ -67,19 +70,18 @@ class main_module
 
 					if (confirm_box(true))
 					{
-						// Todo reload page once finished
-						// if ($request->is_ajax())
-						// {
-						// 	$json_response = new \phpbb\json_response;
-						// 	$json_response->send(array(
-						// 		'MESSAGE_TITLE'	=> 'Title',
-						// 		'MESSAGE_TEXT'	=> 'Text',
-						// 		'REFRESH_DATA'	=> array(
-						// 			'time'	=> 3
-						// 		)
-						// 	));
-						// }
-						$acp_controller->maintenance($action, $engine);
+						$response = $acp_controller->maintenance($action, $engine);
+						if ($request->is_ajax())
+						{
+							$json_response = new \phpbb\json_response;
+
+							// Don't refresh on error
+							if ($response['REFRESH_DATA']['time'] == 0)
+							{
+								unset($response['REFRESH_DATA']);
+							}
+							$json_response->send($response);
+						}
 					}
 					else
 					{
@@ -97,7 +99,6 @@ class main_module
 				case 'settings':
 					$this->tpl_name   = 'acp_pmsearch_body';
 					$this->page_title = $language->lang('ACP_PMSEARCH_TITLE') . ' - ' . $language->lang('ACP_PMSEARCH_MODE_SETTINGS');
-					$acp_controller->set_page_url($this->u_action);
 					$acp_controller->display_options();
 				break;
 
@@ -106,7 +107,6 @@ class main_module
 				default:
 					$this->tpl_name   = 'acp_pmsearch_status';
 					$this->page_title = $language->lang('ACP_PMSEARCH_TITLE') . ' - ' . $language->lang('ACP_PMSEARCH_MODE_STATUS');
-					$acp_controller->set_page_url($this->u_action);
 					$acp_controller->display_status();
 			}
 		}

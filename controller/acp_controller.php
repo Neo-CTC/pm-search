@@ -155,8 +155,6 @@ class acp_controller
 
 	public function maintenance($action, $engine)
 	{
-		$json_response = new json_response;
-
 		switch ($engine)
 		{
 			case 'sphinx':
@@ -169,29 +167,26 @@ class acp_controller
 				$backend = new postgresSearch($this->config, $this->db);
 			break;
 			default:
-				return;
+				return false;
 		}
+
+		$title = $this->language->lang('ERROR');
+		$text  = '';
+		$time  = 2;
+		$url   = $this->u_action;
 
 		switch ($action)
 		{
 			case 'delete':
 				if ($backend->delete_index())
 				{
-					// Todo refresh not working
-					$json_response->send([
-						'MESSAGE_TITLE' => $this->language->lang('INFORMATION'),
-						'MESSAGE_TEXT'  => $this->language->lang('ACP_PMSEARCH_DROP_DONE'),
-						'REFRESH_DATA'  => [
-							'time' => 5,
-						],
-					]);
+					$title = $this->language->lang('INFORMATION');
+					$text  = $this->language->lang('ACP_PMSEARCH_DROP_DONE');
 				}
 				else
 				{
-					$json_response->send([
-						'MESSAGE_TITLE' => $this->language->lang('ERROR'),
-						'MESSAGE_TEXT'  => $this->language->lang($backend->error_msg) . "<br>" . $backend->error_msg_full,
-					]);
+					$text = $this->language->lang($backend->error_msg) . "<br>" . $backend->error_msg_full;
+					$time = 0;
 				}
 			break;
 
@@ -199,23 +194,24 @@ class acp_controller
 				// Todo error levels
 				if ($backend->reindex())
 				{
-					$json_response->send([
-						'MESSAGE_TITLE' => $this->language->lang('INFORMATION'),
-						'MESSAGE_TEXT'  => $this->language->lang('ACP_PMSEARCH_INDEX_DONE'),
-						'REFRESH_DATA'  => [
-							'time' => 5,
-						],
-					]);
+					$title = $this->language->lang('INFORMATION');
+					$text  = $this->language->lang('ACP_PMSEARCH_INDEX_DONE');
 				}
 				else
 				{
-					$json_response->send([
-						'MESSAGE_TITLE' => $this->language->lang('ERROR'),
-						'MESSAGE_TEXT'  => $this->language->lang($backend->error_msg) . "<br>" . $backend->error_msg_full,
-					]);
+					$text = $this->language->lang($backend->error_msg) . "<br>" . $backend->error_msg_full;
+					$time = 0;
 				}
 			break;
 		}
+		return [
+			'MESSAGE_TITLE' => $title,
+			'MESSAGE_TEXT'  => $text,
+			'REFRESH_DATA'  => [
+				'time' => $time,
+				'url'  => $url,
+			],
+		];
 	}
 
 	public function save_settings()
@@ -271,6 +267,7 @@ class acp_controller
 
 	public function set_page_url($u_action)
 	{
-		$this->u_action = $u_action;
+		// Set url and restore & characters
+		$this->u_action = str_replace('&amp;', '&', $u_action);
 	}
 }

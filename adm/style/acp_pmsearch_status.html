@@ -51,7 +51,7 @@
 
 <fieldset>
 	<legend>Sphinx {{ lang('ACP_PMSEARCH_INDEX_COMMANDS') }}</legend>
-	<form id="sphinx_action_reindex" method="post" action="{{ U_ACTION }}" data-ajax="true">
+	<form id="sphinx_action_reindex" method="post" action="{{ U_ACTION }}" data-ajax="true" data-refresh="true">
 		<dl>
 			<dt>
 				<label for="sphinx_reindex">{{ lang('ACP_PMSEARCH_REINDEX') }}</label>
@@ -63,7 +63,7 @@
 			</dd>
 		</dl>
 	</form>
-	<form id="sphinx_action_delete" method="post" action="{{ U_ACTION }}" data-ajax="true">
+	<form id="sphinx_action_delete" method="post" action="{{ U_ACTION }}" data-ajax="true"  data-refresh="true">
 		<dl>
 			<dt>
 				<label for="sphinx_delete">{{ lang('ACP_PMSEARCH_ACTION_DROP') }}</label>
@@ -122,7 +122,7 @@
 {% if not MYSQL_SKIP %}
 	<fieldset>
 		<legend>MySQL Fulltext {{ lang('ACP_PMSEARCH_INDEX_COMMANDS') }}</legend>
-		<form id="mysql_action_reindex" method="post" action="{{ U_ACTION }}" data-ajax="true">
+		<form id="mysql_action_reindex" method="post" action="{{ U_ACTION }}" data-ajax="true" data-refresh="true">
 			<dl>
 				<dt>
 					<label for="mysql_reindex">{{ lang('ACP_PMSEARCH_REINDEX') }}</label>
@@ -134,7 +134,7 @@
 				</dd>
 			</dl>
 		</form>
-		<form id="mysql_action_delete" method="post" action="{{ U_ACTION }}" data-ajax="true">
+		<form id="mysql_action_delete" method="post" action="{{ U_ACTION }}" data-ajax="true" data-refresh="true">
 			<dl>
 				<dt>
 					<label for="mysql_delete">{{ lang('ACP_PMSEARCH_ACTION_DROP') }}</label><br/>
@@ -173,7 +173,7 @@
 {% if not POSTGRES_SKIP %}
 	<fieldset>
 		<legend>PostgreSQL Fulltext {{ lang('ACP_PMSEARCH_INDEX_COMMANDS') }}</legend>
-		<form id="postgres_action_reindex" method="post" action="{{ U_ACTION }}" data-ajax="true">
+		<form id="postgres_action_reindex" method="post" action="{{ U_ACTION }}" data-ajax="true" data-refresh="true">
 			<dl>
 				<dt>
 					<label for="postgres_reindex">{{ lang('ACP_PMSEARCH_REINDEX') }}</label>
@@ -185,7 +185,7 @@
 				</dd>
 			</dl>
 		</form>
-		<form id="postgres_action_delete" method="post" action="{{ U_ACTION }}" data-ajax="true">
+		<form id="postgres_action_delete" method="post" action="{{ U_ACTION }}" data-ajax="true" data-refresh="true">
 			<dl>
 				<dt>
 					<label for="postgres_delete">{{ lang('ACP_PMSEARCH_ACTION_DROP') }}</label><br/>
