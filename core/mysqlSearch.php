@@ -175,7 +175,7 @@ class mysqlSearch implements pmsearch_base
 	/**
 	 * @inheritDoc
 	 */
-	public function search(int $uid, array $indexes, string $keywords, array $from, array $to, array $folders, string $order, string $direction, int $offset)
+	public function search(int $uid, string $indexes, string $keywords, array $from, array $to, array $folders, string $order, string $direction, int $offset)
 	{
 		// Check if ready
 		if (!$this->status_check())
@@ -192,8 +192,20 @@ class mysqlSearch implements pmsearch_base
 		// Only search messages to the user
 		$where = ['t.user_id = ' . $uid];
 
-		// Convert indexes to string
-		$columns = implode(',', $indexes);
+		// Select columns to match
+		// Todo if no keywords search
+		switch ($indexes)
+		{
+			case 't':
+				$columns = 'message_text';
+			break;
+			case 's':
+				$columns = 'message_subject';
+			break;
+			case 'b':
+			default:
+				$columns = 'message_text,message_subject';
+		}
 
 		// Prep keywords for matching
 		if ($keywords)

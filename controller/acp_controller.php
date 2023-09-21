@@ -70,7 +70,7 @@ class acp_controller
 				'value'    => 'mysql',
 				'name'     => 'MySQL',
 				'selected' => $this->config['pmsearch_engine'] == 'mysql',
-				'disabled' => $this->db->get_sql_layer() != 'mysql',
+				'disabled' => $this->db->get_sql_layer() != 'mysqli',
 			],
 			[
 				'value'    => 'postgres',
@@ -82,7 +82,7 @@ class acp_controller
 
 		switch ($this->db->get_sql_layer())
 		{
-			case 'mysql':
+			case 'mysqli':
 				$this->template->assign_var('db_mysql', true);
 			break;
 
@@ -199,8 +199,17 @@ class acp_controller
 				}
 				else
 				{
-					$text = $this->language->lang($backend->error_msg) . "<br>" . $backend->error_msg_full;
-					$time = 0;
+					if ($engine == 'sphinx' && $backend->error_msg == 'INCOMPLETE')
+					{
+						$title = $this->language->lang('ACP_PMSEARCH_INCOMPLETE');
+						$text  = $this->language->lang('ACP_PMSEARCH_INCOMPLETE_PROGRESS', $this->config['pmsearch_sphinx_position'], $backend->error_msg_full);
+						$time  = 0;
+					}
+					else
+					{
+						$text = $this->language->lang($backend->error_msg) . "<br>" . $backend->error_msg_full;
+						$time = 0;
+					}
 				}
 			break;
 		}

@@ -43,6 +43,7 @@ class install_acp_module extends migration
 			//action; [ name; data ]
 			['config.add', ['pmsearch_enable', 0]],
 			['config.add', ['pmsearch_sphinx_ready', 0]],
+			['config.add', ['pmsearch_sphinx_position', 0]],
 			['config.add', ['pmsearch_engine', 'sphinx']],
 			['config.add', ['pmsearch_host', '127.0.0.1']],
 			['config.add', ['pmsearch_port', '9306']],

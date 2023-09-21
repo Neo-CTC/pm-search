@@ -44,7 +44,8 @@ class sphinxSearch implements pmsearch_base
 		{
 			$this->config->set('fulltext_sphinx_id', unique_id());
 		}
-		$this->index_table = 'index_phpbb_' . $this->config['fulltext_sphinx_id'] . '_private_messages';
+		// $this->index_table = 'index_phpbb_' . $this->config['fulltext_sphinx_id'] . '_private_messages';
+		$this->index_table = 'phpbb_pmsearch';
 
 		$this->connect();
 	}
@@ -188,6 +189,9 @@ class sphinxSearch implements pmsearch_base
 			$this->sphinxql->query('TRUNCATE RTINDEX ' . $this->index_table);
 		}
 
+		$this->config->set('pmsearch_sphinx_ready', 0);
+		$this->config->set('pmsearch_sphinx_position', 0);
+
 		return $this->query_execute();
 	}
 
@@ -217,7 +221,7 @@ class sphinxSearch implements pmsearch_base
 			{
 				return false;
 			}
-			$this->config->set('pmsearch_sphinx_ready', 0);
+			$this->config->set('pmsearch_sphinx_ready', 1);
 		}
 
 		// Start the clock
@@ -228,7 +232,6 @@ class sphinxSearch implements pmsearch_base
 		// Todo disable pm updates while indexing
 		// Todo replace the group concat with to_uid and to_gid from the private message table
 		// Todo find a better logic for folder searching, maybe?
-		// Todo store last message id between runs
 
 		// Todo document how the query works
 
@@ -251,11 +254,10 @@ class sphinxSearch implements pmsearch_base
 						WHERE t.pm_deleted = 0
 						GROUP BY p.msg_id
 						ORDER BY p.msg_id ASC';
-		$offset = 0;
+		$offset = $this->config['pmsearch_sphinx_position'];
 		$limit  = 500;
 		$result = $this->db->sql_query_limit($query, $limit);
 
-		// Todo what if indexing takes too long and the script exceeds execution time?
 		// Shove all returned rows into an array for processing
 		// Rows must be an associative array
 		while ($rows = $this->db->sql_fetchrowset($result))
@@ -280,18 +282,27 @@ class sphinxSearch implements pmsearch_base
 				return false;
 			}
 
+			// Next 500 rows
+			$offset += $limit;
+
+			// Save indexing position
+			$this->config->set('pmsearch_sphinx_position', $offset);
+
 			// Watch the clock, don't want the script to timeout
 			$run_time = time() - $start_time;
 
+			// Todo maybe move to cron task?
 			// 5 seconds left on the clock, stop here
-			if ($max_time - $run_time < 6)
+			if ($max_time - $run_time < 5)
 			{
-				$this->config->set('pmsearch_sphinx_ready', 1);
-				return true;
+				$this->error_msg = 'INCOMPLETE';
+
+				// Get total number of messages
+				$result               = $this->db->sql_query('SELECT COUNT(*) as total FROM ' . PRIVMSGS_TABLE);
+				$this->error_msg_full = $this->db->sql_fetchrow($result)['total'];
+				return false;
 			}
 
-			// Next 500 rows
-			$offset += $limit;
 			$this->db->sql_freeresult($result);
 			$result = $this->db->sql_query_limit($query, $limit, $offset);
 		}
@@ -304,7 +315,7 @@ class sphinxSearch implements pmsearch_base
 	/**
 	 * @inheritDoc
 	 */
-	public function search(int $uid, array $indexes, string $keywords, array $from, array $to, array $folders, string $order, string $direction, int $offset)
+	public function search(int $uid, string $indexes, string $keywords, array $from, array $to, array $folders, string $order, string $direction, int $offset)
 	{
 		if (!$this->index_ready())
 		{
@@ -330,7 +341,20 @@ class sphinxSearch implements pmsearch_base
 		// Search for terms while also allowing control characters
 		if ($keywords)
 		{
-			$search->match($indexes, $keywords, true);
+			// Select columns to match
+			switch ($indexes)
+			{
+				case 't':
+					$columns = 'message_text';
+				break;
+				case 's':
+					$columns = 'message_subject';
+				break;
+				case 'b':
+				default:
+					$columns = ['message_text', 'message_subject'];
+			}
+			$search->match($columns, $keywords, true);
 		}
 
 		// Search for messages sent from these authors

@@ -17,6 +17,7 @@ class postgresSearch implements pmsearch_base
 
 	private $index_text;
 	private $index_subject;
+	private $index_both;
 
 	public function __construct(config $config, driver_interface $db)
 	{
@@ -31,6 +32,7 @@ class postgresSearch implements pmsearch_base
 		global $table_prefix;
 		$this->index_subject = $table_prefix . "pmsearch_s";
 		$this->index_text    = $table_prefix . "pmsearch_t";
+		$this->index_both    = $table_prefix . "pmsearch_b";
 	}
 
 	/**
@@ -48,6 +50,7 @@ class postgresSearch implements pmsearch_base
 		// Index all the things
 		$sql[] = "CREATE INDEX " . $this->index_text . " on " . PRIVMSGS_TABLE . " USING gin(to_tsvector('" . $this->config['fulltext_postgres_ts_name'] . "', message_text))";
 		$sql[] = "CREATE INDEX " . $this->index_subject . " on " . PRIVMSGS_TABLE . " USING gin(to_tsvector('" . $this->config['fulltext_postgres_ts_name'] . "', message_subject))";
+		$sql[] = "CREATE INDEX " . $this->index_both . " on " . PRIVMSGS_TABLE . " USING gin(to_tsvector('" . $this->config['fulltext_postgres_ts_name'] . "', message_text || ' ' || message_subject))";
 
 		foreach ($sql as $value)
 		{
@@ -79,6 +82,7 @@ class postgresSearch implements pmsearch_base
 
 		$sql[] = 'DROP INDEX IF EXISTS ' . $this->index_subject;
 		$sql[] = 'DROP INDEX IF EXISTS ' . $this->index_text;
+		$sql[] = 'DROP INDEX IF EXISTS ' . $this->index_both;
 
 		foreach ($sql as $value)
 		{
@@ -109,7 +113,7 @@ class postgresSearch implements pmsearch_base
 	/**
 	 * @inheritDoc
 	 */
-	public function search(int $uid, array $indexes, string $keywords, array $from, array $to, array $folders, string $order, string $direction, int $offset)
+	public function search(int $uid, string $indexes, string $keywords, array $from, array $to, array $folders, string $order, string $direction, int $offset)
 	{
 		// Check if ready
 		if (!$this->status_check())
@@ -143,16 +147,21 @@ class postgresSearch implements pmsearch_base
 			// Escape
 			$query_keywords = $this->db->sql_escape($query_keywords);
 
-			// Build match query
-			$ts_query = '';
-			foreach ($indexes as $k => $v)
+			// Select columns to match
+			// Todo if no keywords search
+			switch ($indexes)
 			{
-				// Matching more than one index
-				$ts_query .= $k != 0 ? ' OR ' : '';
-
-				$ts_query .= "to_tsvector('" . $this->config['fulltext_postgres_ts_name'] . "', " . $v . ") @@ to_tsquery('" . $this->config['fulltext_postgres_ts_name'] . "', '" . $query_keywords . "')";
+				case 't':
+					$ts_query = "to_tsvector('" . $this->config['fulltext_postgres_ts_name'] . "', message_text) @@ to_tsquery('" . $this->config['fulltext_postgres_ts_name'] . "', '" . $query_keywords . "')";
+				break;
+				case 's':
+					$ts_query = "to_tsvector('" . $this->config['fulltext_postgres_ts_name'] . "', message_subject) @@ to_tsquery('" . $this->config['fulltext_postgres_ts_name'] . "', '" . $query_keywords . "')";
+				break;
+				case 'b':
+				default:
+					$ts_query = "to_tsvector('" . $this->config['fulltext_postgres_ts_name'] . "', message_text || ' ' || message_subject) @@ to_tsquery('" . $this->config['fulltext_postgres_ts_name'] . "', '" . $query_keywords . "')";
 			}
-			$where[] = '(' . $ts_query . ')';
+			$where[] = $ts_query;
 		}
 
 		// Search for messages sent from these authors
@@ -195,7 +204,7 @@ class postgresSearch implements pmsearch_base
 
 		$sql = 'SELECT DISTINCT p.msg_id id, ' . $order . '
 				FROM ' . PRIVMSGS_TABLE . ' p 
-				JOIN ' . PRIVMSGS_TO_TABLE . ' t ON p.msg_id = t.msg_id
+				INNER JOIN ' . PRIVMSGS_TO_TABLE . ' t ON p.msg_id = t.msg_id
 				WHERE ' . $where . '
 				ORDER BY ' . $order . ' ' . $direction . '
 				LIMIT ' . $this->config['posts_per_page'] . ' OFFSET ' . $offset;

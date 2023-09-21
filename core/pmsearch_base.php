@@ -67,7 +67,7 @@ interface pmsearch_base
 	 *
 	 * @return false|array
 	 */
-	public function search(int $uid, array $indexes, string $keywords, array $from, array $to, array $folders, string $order, string $direction, int $offset);
+	public function search(int $uid, string $indexes, string $keywords, array $from, array $to, array $folders, string $order, string $direction, int $offset);
 
 	/**
 	 * Status of search backend

@@ -162,20 +162,6 @@ class ucp_controller
 			$sent_id_array = $this->get_ids($sent);
 		}
 
-		// Which full text fields to search
-		switch ($search_field)
-		{
-			case 't':
-				$search_field = ['message_text'];
-			break;
-			case 's':
-				$search_field = ['message_subject'];
-			break;
-			case 'b':
-			default:
-				$search_field = ['message_text', 'message_subject'];
-		}
-
 		// Todo make sorting work with author and subject
 		switch ($order)
 		{
