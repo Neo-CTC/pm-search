@@ -11,6 +11,8 @@
 namespace crosstimecafe\pmsearch\ucp;
 
 
+use phpbb\json_response;
+
 /**
  * PM Search UCP module.
  */
@@ -54,11 +56,24 @@ class main_module
 			$from     = $request->variable('from', '', true);
 			$sent     = $request->variable('sent', '', true);
 
+			$action = $request->variable('action', '');
+
 			// Select function
 			if ($keywords || $from || $sent)
 			{
 				$this->tpl_name = 'ucp_pmsearch_results';
 				$ucp_controller->display_messages();
+			}
+
+			else if ($action)
+			{
+				$response = $ucp_controller->pm_actions();
+				if ($request->is_ajax())
+				{
+					$json_response = new json_response;
+					$json_response->send($response);
+				}
+				// TODO: handle non javascript actions
 			}
 			else
 			{

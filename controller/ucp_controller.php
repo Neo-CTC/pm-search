@@ -11,9 +11,8 @@
 namespace crosstimecafe\pmsearch\controller;
 
 use crosstimecafe\pmsearch\core\mysqlSearch;
-use crosstimecafe\pmsearch\core\sphinxSearch;
 use crosstimecafe\pmsearch\core\postgresSearch;
-
+use crosstimecafe\pmsearch\core\sphinxSearch;
 use phpbb\auth\auth;
 use phpbb\config\config;
 use phpbb\db\driver\driver_interface;
@@ -42,6 +41,7 @@ class ucp_controller
 	protected $uid;
 	protected $user;
 
+	private $folder_cache;
 	private $name_cache;
 
 	/**
@@ -85,15 +85,9 @@ class ucp_controller
 
 	public function display_messages()
 	{
-		// Form key for preventing CSRF attacks
-		add_form_key('crosstimecafe_pmsearch_ucp');
-		if ($this->request->is_set_post('submit'))
-		{
-			if (!check_form_key('crosstimecafe_pmsearch_ucp'))
-			{
-				trigger_error($this->language->lang('FORM_INVALID'));
-			}
-		}
+		// Add folders to private message navbar
+		$this->template->assign_var('S_PRIVMSGS', true);
+		$folder_list = get_folder($this->uid);
 
 		// Todo don't forget about group messages
 		// Todo harden input
@@ -197,6 +191,7 @@ class ucp_controller
 				return;
 		}
 
+		// TODO: handle invalid start numbers
 		$result = $backend->search($this->uid, $search_field, $keywords, $from_id_array, $sent_id_array, $folders, $order, $direction, $start);
 		if (!$result)
 		{
@@ -229,10 +224,34 @@ class ucp_controller
 			// Collect message ids
 			$sql_where = $this->db->sql_in_set('p.msg_id', $message_ids);
 
+			// SQL to combine folder names
+			switch ($this->db->get_sql_layer())
+			{
+				case 'mysqli':
+					$folder_concat = "GROUP_CONCAT(t.folder_id SEPARATOR '&&') as fid";
+				break;
+				case 'postgres':
+					$folder_concat = "STRING_AGG(t.folder_id,'&&') as fid";
+				break;
+				default:
+					$folder_concat = 'MAX(t.folder_id) as fid';
+			}
+
 			// SQL for fetching messages from ids
-			// We run MAX() on the folder id in the unlikely event that the message is in two different folders. Eg, sending a pm to yourself
 			$sql_array = [
-				'SELECT'    => 'p.msg_id, p.author_id, u.username as author_name, u.user_colour as author_colour, p.message_time, p.message_subject, p.message_text, p.bbcode_uid, p.bbcode_bitfield, p.to_address, p.bcc_address, MAX(t.folder_id) folder_id',
+				'SELECT'    =>
+					'p.msg_id,' .
+					'p.author_id,' .
+					'u.username as author_name,' .
+					'u.user_colour as author_colour,' .
+					'p.message_time,' .
+					'p.message_subject,' .
+					'p.message_text,' .
+					'p.bbcode_uid,' .
+					'p.bbcode_bitfield,' .
+					'p.to_address,' .
+					'p.bcc_address,' .
+					$folder_concat,
 				'FROM'      => [
 					PRIVMSGS_TABLE => 'p',
 				],
@@ -251,7 +270,7 @@ class ucp_controller
 				],
 				'WHERE'     => $sql_where,
 				'GROUP_BY'  => 'p.msg_id, u.user_id', // We don't need to group the user_id but PostgreSQL complains if we don't
-				'ORDER_BY'  => $order . ' ' . $direction,
+				'ORDER_BY'  => $order . ' ' . $direction . ', p.msg_id DESC', // Todo better order logic
 			];
 			$sql       = $this->db->sql_build_query('SELECT', $sql_array);
 			$result    = $this->db->sql_query($sql);
@@ -310,7 +329,7 @@ class ucp_controller
 
 
 				//Build to address string
-				$to_address = $this->colorize_usernames(explode(":", $row['to_address']));
+				$to_address = $this->colorize_usernames(explode(':', $row['to_address']));
 
 				//Build bcc address string
 				$bcc_address = '';
@@ -319,7 +338,7 @@ class ucp_controller
 					// Let the author see all bcc
 					if ($row['author_id'] == $this->uid)
 					{
-						$bcc_address = $this->colorize_usernames(explode(":", $row['bcc_address']));
+						$bcc_address = $this->colorize_usernames(explode(':', $row['bcc_address']));
 					}
 					// Let user see bcc to self
 					else if (preg_match('/u_' . $this->uid . '(?:$|:)/', $row['bcc_address']))
@@ -334,23 +353,12 @@ class ucp_controller
 				 *
 				 */
 
-
-				// This was part of the SQL query but with MAX() on the folder id, it's safer to find the names separately
-				switch ($row['folder_id'])
+				$folder_names = [];
+				foreach (explode('&&', $row['fid']) as $fid)
 				{
-					case -2:
-						$folder_name = 'Outbox';
-					break;
-					case -1:
-						$folder_name = 'Sent';
-					break;
-					case 0:
-						$folder_name = 'Inbox';
-					break;
-					default:
-						$this->db->sql_query('SELECT folder_name FROM ' . PRIVMSGS_FOLDER_TABLE . ' WHERE folder_id = ' . $row['folder_id']);
-						$folder_name = $this->db->sql_fetchfield('folder_name');
+					$folder_names[] = $folder_list[$fid]['folder_name'];
 				}
+				$folder_names = implode(', ', $folder_names);
 
 
 				/*
@@ -362,15 +370,16 @@ class ucp_controller
 
 				$this->template->assign_block_vars('searchresults', [
 					'DATE'          => (!empty($row['message_time'])) ? $this->user->format_date($row['message_time']) : '',
-					'AUTHOR'        => get_username_string('full', $row['author_id'], $row['author_name'], $row['author_colour']),
+					'AUTHOR'        => $this->colorize_usernames([$row['author_id']]),
 					'RECIPIENTS'    => $to_address,
 					'BCC_RECIPIENT' => $bcc_address,
-					'FOLDER'        => $folder_name,
+					'FOLDER'        => $folder_names,
 
 					'SUBJECT' => $row['message_subject'],
 					'MESSAGE' => $row['message_text'],
 
 					'VIEW_MESSAGE' => append_sid("{$this->root}ucp.$this->ext", 'i=pm&mode=view&p=' . $row['msg_id']),
+					'MESSAGE_ID'   => $row['msg_id'],
 				]);
 			}
 			$this->db->sql_freeresult($result);
@@ -384,13 +393,13 @@ class ucp_controller
 		 */
 
 
-		$start     = $this->pagination->validate_start($start, $this->config['posts_per_page'], $total_found);
-		$url_parms = $keywords ? '&keywords=' . urlencode($keywords) : '';
-		$url_parms .= $from ? '&from=' . urlencode($from) : '';
-		$url_parms .= $sent ? '&sent=' . urlencode($sent) : '';
+		$start      = $this->pagination->validate_start($start, $this->config['posts_per_page'], $total_found);
+		$url_params = '&keywords=' . urlencode($keywords);
+		$url_params .= '&from=' . urlencode($from);
+		$url_params .= '&sent=' . urlencode($sent);
 		foreach ($folders as $f)
 		{
-			$url_parms .= '&fid[]=' . substr($f, strpos($f, '_') + 1, -1);
+			$url_params .= '&fid[]=' . $f;
 		}
 		switch ($search_field)
 		{
@@ -403,16 +412,20 @@ class ucp_controller
 			default:
 				$search_field = 'b';
 		}
-		$url_parms .= '&sf=' . $search_field;
+		$url_params .= '&sf=' . $search_field;
 		switch ($order)
 		{
 			case 'message_time':
 			default:
 				$order = 't';
 		}
-		$url_parms .= '&sk=' . $order;
-		$url_parms .= $direction == 'ASC' ? '&sd=a' : '&sd=d';
-		$this->pagination->generate_template_pagination($this->u_action . $url_parms, 'pagination', 'start', $total_found, $this->config['posts_per_page'], $start);
+		$url_params .= '&sk=' . $order;
+		$url_params .= $direction == 'ASC' ? '&sd=a' : '&sd=d';
+		$base_url   = $this->u_action . $url_params;
+		$this->pagination->generate_template_pagination($base_url, 'pagination', 'start', $total_found, $this->config['posts_per_page'], $start);
+
+		// Store the current page so we can pass it on to ajax for refreshing
+		$this->template->assign_var('PM_CURRENT_URL', $base_url . '&start=' . $start);
 
 
 		/*
@@ -421,36 +434,14 @@ class ucp_controller
 		 *
 		 */
 
-
-		$folder_list = '';
-		if ($folders)
+		$search_folders = [];
+		foreach ($folders as $folder)
 		{
-			// Default folders
-			$folder_list .= in_array(0, $folders) ? 'Inbox ' : '';
-			$folder_list .= in_array(-1, $folders) ? 'Sent ' : '';
-			$folder_list .= in_array(-2, $folders) ? 'Outbox ' : '';
-
-			// Custom folders
-			$sql_where = $this->db->sql_in_set('folder_id', $folders);
-			$result    = $this->db->sql_query('SELECT folder_name FROM ' . PRIVMSGS_FOLDER_TABLE . ' WHERE user_id = ' . $this->uid . ' AND ' . $sql_where);
-			while ($row = $this->db->sql_fetchrow($result))
-			{
-				$folder_list .= $row['folder_name'];
-			}
+			$search_folders[] = $folder_list[$folder]['folder_name'] ?? $this->language->lang('UNKNOWN_FOLDER');
 		}
+		$search_folders = implode(', ', $search_folders);
 
-
-		/*
-		 *
-		 * Assign more template variables
-		 *
-		 */
-
-
-		// Adds user folders to private message navbar
-		$this->template->assign_var('S_PRIVMSGS', true);
-		get_folder($this->uid);
-
+		// Show the user what they used to search
 		$this->template->assign_vars([
 			'SEARCH_LINK'    => $this->u_action,
 			'SEARCH_MATCHES' => $this->language->lang('FOUND_SEARCH_MATCHES', $total_found),
@@ -458,24 +449,29 @@ class ucp_controller
 			'KEYWORDS' => $keywords,
 			'FROM'     => $from,
 			'SENT'     => $sent,
-			'FOLDER'   => $folder_list,
+			'FOLDER'   => $search_folders,
+
+			'U_PMSEARCH_ACTION' => $this->u_action,
 		]);
+
+		// Create move to list
+		foreach ($folder_list as $fid => $value)
+		{
+			// Skip Out and Sent boxes
+			if ($fid < 0)
+			{
+				continue;
+			}
+			$this->template->assign_block_vars('folder_move_to', [
+				'id'     => $fid,
+				'folder' => sprintf($this->language->lang('MOVE_MARKED_TO_FOLDER'), $value['folder_name']),
+			]);
+		}
 	}
 
 	public function display_options()
 	{
 		// Todo permission checking
-
-		// Form key for preventing CSRF attacks
-		add_form_key('crosstimecafe_pmsearch_ucp');
-		if ($this->request->is_set_post('submit'))
-		{
-			if (!check_form_key('crosstimecafe_pmsearch_ucp'))
-			{
-				trigger_error($this->language->lang('FORM_INVALID'));
-			}
-		}
-
 
 		/*
 		 *
@@ -516,11 +512,146 @@ class ucp_controller
 		$this->template->assign_var('S_PRIVMSGS', true);
 		get_folder($this->uid);
 
+		// We'll be making a get request, carry over module and mode
+		$s_hidden_fileds = build_hidden_fields([
+			'i'    => $this->request->variable('i', ''),
+			'mode' => $this->request->variable('mode', ''),
+		]);
+
 		$this->template->assign_vars([
+			// TODO: error handling
 			//'S_ERROR'		=> $s_errors,
 			//'ERROR_MSG'	=> $s_errors ? implode('<br />', $errors) : '',
-			'U_UCP_ACTION' => $this->u_action,
+			'U_UCP_ACTION'    => $this->u_action,
+			'S_HIDDEN_FIELDS' => $s_hidden_fileds,
 		]);
+	}
+
+	public function pm_actions()
+	{
+		$action  = $this->request->variable('action', '');
+		$msg_ids = $this->request->variable('msg_ids', [0]);
+
+		if (!$msg_ids)
+		{
+			return [];
+		}
+
+		// TODO: try out the helper api
+		// We'll need this so we can reload the page after modifying the messages
+		$page_url = html_entity_decode($this->request->variable('page_url', ''));
+
+		// Set defaults for ajax
+		$title   = $this->language->lang('ERROR');
+		$text    = '';
+		$refresh = false;
+
+		switch ($action)
+		{
+			// Copying from functions_privmsgs
+			case 'mark_important':
+				$sql = 'UPDATE ' . PRIVMSGS_TO_TABLE . ' SET pm_marked = 1 - pm_marked WHERE user_id = ' . $this->uid . ' AND ' . $this->db->sql_in_set('msg_id', $msg_ids);
+				$this->db->sql_query($sql);
+
+				$title = $this->language->lang('INFORMATION');
+				$text  = $this->language->lang('UCP_PMSEARCH_MESSAGES_MARKED');
+			break;
+
+			case 'delete_marked':
+
+
+				if (!confirm_box(true))
+				{
+					$fields = build_hidden_fields(['action' => $action, 'msg_ids' => $msg_ids, 'page_url' => $page_url]);
+					confirm_box(false, 'DELETE_MARKED_PM', $fields);
+				}
+
+				if (!$this->auth->acl_get('u_pm_delete'))
+				{
+					send_status_line(403, 'Forbidden');
+					trigger_error('NO_AUTH_DELETE_MESSAGE');
+				}
+
+				foreach ($msg_ids as $msg_id)
+				{
+					// TODO: deal with messages in multiple folders
+					// Sometimes a message is in 2 folders, this only happens when a user sends a message to self
+					// They'll both be deleted
+					$sql    = 'SELECT folder_id FROM ' . PRIVMSGS_TO_TABLE . ' WHERE user_id = ' . $this->uid . ' AND msg_id = ' . $msg_id;
+					$result = $this->db->sql_query($sql);
+
+					// Fetch all the folders
+					$f_ids = [];
+					while ($row = $this->db->sql_fetchrow($result))
+					{
+						$f_ids[] = $row['folder_id'];
+					}
+
+					$this->db->sql_freeresult($result);
+
+					// Let phpbb handle the actual deletion
+					foreach ($f_ids as $f_id)
+					{
+						delete_pm($this->uid, $msg_id, $f_id);
+					}
+				}
+
+				$title   = $this->language->lang('INFORMATION');
+				$text    = $this->language->lang('MESSAGES_DELETED');
+				$refresh = true;
+			break;
+
+			// Most likely an action to move to a folder
+			default:
+				// Not an action to move to a folder
+				if (strpos($action, 'move_to') !== 0)
+				{
+					break;
+				}
+
+				$dest_id = (int) substr($action, 8);
+
+				$backend = false;
+				// Prep sphinx
+				if ($this->config['pmsearch_engine'] == 'sphinx')
+				{
+					$backend = new sphinxSearch($this->config, $this->db);
+				}
+
+				foreach ($msg_ids as $msg_id)
+				{
+					// Fetch 1 and only 1 folder id
+					// Sometimes a message is in 2 folders, this only happens when a user sends a message to self
+					$sql    = 'SELECT folder_id FROM ' . PRIVMSGS_TO_TABLE . ' WHERE user_id = ' . $this->uid . ' AND msg_id = ' . $msg_id . ' ORDER BY folder_id DESC LIMIT 1';
+					$result = $this->db->sql_query($sql);
+
+					// Fetch the first folder found
+					$f_ids = $this->db->sql_fetchfield('folder_id', false, $result);
+					$this->db->sql_freeresult($result);
+
+					// Let phpbb handle the actual move
+					set_user_message_limit();
+					move_pm($this->uid, $this->user->data['message_limit'], $msg_id, $dest_id, $f_ids);
+
+					// Yes we are running this on each message and not all at once. This is due to the
+					// chance that move_pm may fail if a box is full
+					if ($backend)
+					{
+						$backend->update_entry($msg_id);
+					}
+				}
+
+				$title   = $this->language->lang('INFORMATION');
+				$text    = $this->language->lang('UCP_PMSEARCH_MESSAGES_MOVED');
+				$refresh = true;
+			break;
+		}
+		$response = ['MESSAGE_TITLE' => $title, 'MESSAGE_TEXT' => $text];
+		if ($refresh)
+		{
+			$response['REFRESH_DATA'] = ['time' => 2, 'url' => $page_url];
+		}
+		return $response;
 	}
 
 	public function set_page_url($u_action)
@@ -544,7 +675,12 @@ class ucp_controller
 		{
 			// Todo groups vs users
 
-			$id = substr($id, 2);
+			// Remove prefix
+			if (substr($id, 1, 1) === '_')
+			{
+				$id = substr($id, 2);
+			}
+
 			if (isset($this->name_cache[$id]))
 			{
 				$colorized[$id] = $this->name_cache[$id];
@@ -569,6 +705,16 @@ class ucp_controller
 			}
 		}
 		return implode(' ', $colorized);
+	}
+
+	private function fetch_folder_name($f_id)
+	{
+		if (!isset($this->folder_cache[$f_id]))
+		{
+			$result                    = $this->db->sql_query('SELECT folder_name FROM ' . PRIVMSGS_FOLDER_TABLE . ' WHERE folder_id = ' . $f_id . ' AND user_id = ' . $this->uid);
+			$this->folder_cache[$f_id] = $this->db->sql_fetchfield('folder_name', false, $result);
+		}
+		return $this->folder_cache[$f_id];
 	}
 
 	/**

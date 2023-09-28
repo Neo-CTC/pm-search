@@ -1,6 +1,6 @@
 {% include 'ucp_header.html' %}
-<form id="crosstimecafe_pmsearch_ucp" name="crosstimecafe_pmsearch_ucp" method="post" action="{{ U_UCP_ACTION }}">
-
+<form id="crosstimecafe_pmsearch_ucp" name="crosstimecafe_pmsearch_ucp" method="get" action="{{ U_UCP_ACTION }}">
+	{{ S_HIDDEN_FIELDS }}
 	<h2>{L_SEARCH}</h2>
 
 	<div class="panel">
@@ -68,6 +68,7 @@
 						<label for="sf3"><input type="radio" name="sf" id="sf3" value="s"/>{L_UCP_PMSEARCH_SEARCH_SUBJECT}</label>
 					</dd>
 				</dl>
+				{# TODO: More search options #}
 				<!-- Not yet ready
 				<hr class="dashed" />
 
@@ -109,12 +110,10 @@
 		<dl>
 			<dt>&nbsp;</dt>
 			<dd>
-				<input type="submit" name="submit" id="submit" class="button1" value="{{ lang('SUBMIT') }}" tabindex="2"/>&nbsp;
+				<input type="submit" id="submit" class="button1" value="{{ lang('SUBMIT') }}" tabindex="2"/>&nbsp;
 				<input type="reset" name="reset" class="button2" value="{{ lang('RESET') }}"/>
 			</dd>
 		</dl>
-		{{ S_HIDDEN_FIELDS }}
-		{{ S_FORM_TOKEN }}
 	</fieldset>
 </form>
 

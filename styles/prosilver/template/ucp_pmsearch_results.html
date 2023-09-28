@@ -14,7 +14,7 @@
 	</a>
 </p>
 
-<!-- IF .pagination or SEARCH_MATCHES or TOTAL_MATCHES or PAGE_NUMBER -->
+<!-- IF searchresults -->
 <div class="action-bar bar-top">
 
 	<div class="pagination">
@@ -26,56 +26,79 @@
 		<!-- ENDIF -->
 	</div>
 </div>
-<!-- ENDIF -->
-<!-- BEGIN searchresults -->
-<style>
-	.inner .postprofile {
-		color: #000;
-	}
 
-	.inner .postprofile strong {
-		font-weight: bold;
-	}
+<form id="view_search" method="post" action="{{ U_PMSEARCH_ACTION }}" data-ajax="test" data-refresh="true">
+	<!-- ENDIF -->
 
-	.inner .postprofile a {
-		font-weight: bold;
-	}
-</style>
-<div class="search post <!-- IF searchresults.S_ROW_COUNT is odd -->bg1<!-- ELSE -->bg2<!-- ENDIF --><!-- IF searchresults.S_POST_REPORTED --> reported<!-- ENDIF -->">
-	<div class="inner">
-		<div class="postprofile">
-			<strong>{L_SENT_AT}{L_COLON}</strong> {searchresults.DATE}
-			<br/><strong>{L_PM_FROM}{L_COLON}</strong> {searchresults.AUTHOR}
-			{% if searchresults.RECIPIENTS %}<br/><strong>{L_TO}{L_COLON}</strong> {searchresults.RECIPIENTS}{% endif %}
-			{% if searchresults.BCC_RECIPIENT %}<br/><strong>{L_BCC}{L_COLON}</strong> {searchresults.BCC_RECIPIENT}{% endif %}
-			<br/><strong>{L_UCP_PMSEARCH_FOLDER}{L_COLON}</strong> {searchresults.FOLDER}
+	<style>
+		.inner .postprofile {
+			color: #000;
+		}
+
+		.inner .postprofile strong {
+			font-weight: bold;
+		}
+
+		.inner .postprofile a {
+			font-weight: bold;
+		}
+	</style>
+	<!-- BEGIN searchresults -->
+	<div class="search post <!-- IF searchresults.S_ROW_COUNT is odd -->bg1<!-- ELSE -->bg2<!-- ENDIF --><!-- IF searchresults.S_POST_REPORTED --> reported<!-- ENDIF -->">
+		<div class="inner">
+			<div class="postprofile">
+				<strong>{L_SENT_AT}{L_COLON}</strong> {searchresults.DATE}
+				<br/><strong>{L_PM_FROM}{L_COLON}</strong> {searchresults.AUTHOR}
+				{% if searchresults.RECIPIENTS %}<br/><strong>{L_TO}{L_COLON}</strong> {searchresults.RECIPIENTS}{% endif %}
+				{% if searchresults.BCC_RECIPIENT %}<br/><strong>{L_BCC}{L_COLON}</strong> {searchresults.BCC_RECIPIENT}{% endif %}
+				<br/><strong>{L_UCP_PMSEARCH_FOLDER}{L_COLON}</strong> {searchresults.FOLDER}
+			</div>
+
+			<div class="postbody">
+
+				<h3><a href="{{ searchresults.VIEW_MESSAGE }}">{searchresults.SUBJECT}</a></h3>
+				<div class="content">{{ searchresults.MESSAGE }}</div>
+
+			</div>
+
+			<ul class="searchresults">
+				<li>
+					<label for="post_id_list_select_{{ searchresults.MESSAGE_ID }}">{L_SELECT}{L_COLON}
+						<input type="checkbox" id="message_select_{{ searchresults.MESSAGE_ID }}" name="msg_ids[]" value="{{ searchresults.MESSAGE_ID }}" autocomplete="off">
+					</label>
+				</li>
+				<li>
+					<a href="{{ searchresults.VIEW_MESSAGE }}" class="arrow-{S_CONTENT_FLOW_END}">
+						<i class="icon fa-angle-{S_CONTENT_FLOW_END} fa-fw icon-black" aria-hidden="true"></i><span>{L_UCP_PMSEARCH_JUMP}</span>
+					</a>
+				</li>
+			</ul>
+
 		</div>
-
-		<div class="postbody">
-
-			<h3><a href="{{ searchresults.VIEW_MESSAGE }}">{searchresults.SUBJECT}</a></h3>
-			<div class="content">{searchresults.MESSAGE}</div>
-
+	</div>
+	<!-- BEGINELSE -->
+	<div class="panel">
+		<div class="inner">
+			<strong>{L_NO_SEARCH_RESULTS}</strong>
 		</div>
-
-		<ul class="searchresults">
-			<li>
-				<a href="{{ searchresults.VIEW_MESSAGE }}" class="arrow-{S_CONTENT_FLOW_END}">
-					<i class="icon fa-angle-{S_CONTENT_FLOW_END} fa-fw icon-black" aria-hidden="true"></i><span>{L_UCP_PMSEARCH_JUMP}</span>
-				</a>
-			</li>
-		</ul>
-
 	</div>
-</div>
-
-<!-- BEGINELSE -->
-<div class="panel">
-	<div class="inner">
-		<strong>{L_NO_SEARCH_RESULTS}</strong>
-	</div>
-</div>
-<!-- END searchresults -->
+	<!-- END searchresults -->
+	{% if searchresults %}
+	<fieldset class="display-actions">
+		<select name="action">
+			<option value="mark_important">{{ lang('MARK_IMPORTANT') }}</option>
+			<option value="delete_marked">{{ lang('DELETE_MARKED_PM') }}</option>
+			{% for folder in folder_move_to %}
+				<option value="move_to_{{ folder.id }}">{{ folder.folder }}</option>
+			{% endfor %}
+		</select>
+		<input class="button2" type="submit" value="{L_GO}"/>
+		<div><a href="#" onclick="marklist('view_search', 'msg_ids', true); return false;">{L_MARK_ALL}</a> &bull;
+			<a href="#" onclick="marklist('view_search', 'msg_ids', false); return false;">{L_UNMARK_ALL}</a></div>
+	</fieldset>
+	<input type="hidden" name="page_url" value="{{ PM_CURRENT_URL }}">
+</form>
+{% endif %}
 
 <div class="action-bar bottom">
 	<!-- IF .searchresults and (S_SELECT_SORT_DAYS or S_SELECT_SORT_KEY) -->

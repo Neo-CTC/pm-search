@@ -54,6 +54,9 @@ $lang = array_merge($lang, [
 	'UCP_PMSEARCH_FOLDER'  => 'Folders',
 	'UCP_PMSEARCH_TIME'    => 'Time',
 
+	'UCP_PMSEARCH_MESSAGES_MOVED'  => 'Messages moved',
+	'UCP_PMSEARCH_MESSAGES_MARKED' => 'Messages marked',
+
 	'UCP_PMSEARCH_NOT_BOTH' => "Can not search both 'from' and 'to' fields in the same search ",
 	'UCP_PMSEARCH_RETURN'   => 'Return to search',
 	'UCP_PMSEARCH_FOUND'    => 'Search found ',

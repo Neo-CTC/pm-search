@@ -91,8 +91,6 @@ class sphinxSearch implements pmsearch_base
 	 */
 	public function delete_entry($ids, $uid, $folder)
 	{
-		// TODO: Don't run if not ready
-
 		// Undelivered messages, purge them
 		if ($folder === PRIVMSGS_OUTBOX)
 		{
@@ -224,9 +222,10 @@ class sphinxSearch implements pmsearch_base
 			$this->config->set('pmsearch_sphinx_ready', 1);
 		}
 
+		// Ajax times out after 60s
 		// Start the clock
 		$max_time   = ini_get('max_execution_time');
-		$max_time   = $max_time > 0 ? $max_time : 30;
+		$max_time   = $max_time > 0 ? min($max_time, 45) : 45;
 		$start_time = time();
 
 		// Todo disable pm updates while indexing
@@ -391,6 +390,12 @@ class sphinxSearch implements pmsearch_base
 		$search->orderBy($order, $direction);
 		$search->limit($offset, $this->config['posts_per_page']);
 
+		// Don't apply weights to the messages
+		$search->option('ranker', 'none');
+
+		// Increase match limit to a limit no sane user should hit
+		$search->option('max_matches', 10000);
+
 		// Fetch matches
 		$result = $this->query_execute();
 		if (!$result)
@@ -446,7 +451,17 @@ class sphinxSearch implements pmsearch_base
 		$ready = $this->index_ready();
 		if ($ready)
 		{
-			$template['SPHINX_STATUS'] = 'ACP_PMSEARCH_READY';
+			switch ($this->config['pmsearch_sphinx_ready'])
+			{
+				case 0:
+					$template['SPHINX_STATUS'] = 'ACP_PMSEARCH_NO_INDEX';
+				break;
+				case 1:
+					$template['SPHINX_STATUS'] = 'ACP_PMSEARCH_INCOMPLETE';
+				break;
+				case 2:
+					$template['SPHINX_STATUS'] = 'ACP_PMSEARCH_READY';
+			}
 
 			$this->sphinxql->query('SHOW INDEX ' . $this->index_table . ' STATUS');
 			$result = $this->query_execute();
